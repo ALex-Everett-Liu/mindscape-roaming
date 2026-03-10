@@ -32,8 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force full tree reload (clear + loading state) after restore
   - Increased RPC timeouts for Discard (renderer 15s, main 10s)
   - Proper error handling; clears "Discarding..." state on failure
+- **Data loss on restart**: Database now uses `Utils.paths.userData` instead of `process.cwd()` — stable path across runs. Previously, `electrobun dev` ran from build output dir, creating a new empty DB on each restart.
+- **Outline tree spacing**: Reduced excessive vertical padding; nested trees use minimal padding to eliminate large gaps between root-level siblings.
 
-## [0.1.3] - 2025-03-10
+## [0.1.3] - 2025-03-10 - 2025-03-10
 
 ### Fixed
 

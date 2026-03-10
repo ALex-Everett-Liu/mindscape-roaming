@@ -200,28 +200,37 @@ body {
 /* ─── Outline Tree ──────────────────────────────────── */
 .outline-tree {
   list-style: none;
-  padding-left: 24px;
+  margin: 0;
+  padding: 4px 0 24px 24px;
   flex: 1;
   overflow-y: auto;
-  padding-top: 8px;
-  padding-bottom: 100px;
+  min-height: 0;
 }
 
-.outline-tree:first-child {
+/* Root tree only: slightly more left indent */
+.app > .outline-tree {
   padding-left: 32px;
+}
+
+/* Nested trees: minimal vertical padding to avoid large gaps between siblings */
+.outline-node > .outline-tree {
+  flex: none;
+  padding: 2px 0 2px 24px;
 }
 
 .outline-node {
   position: relative;
+  margin: 0;
+  display: block;
 }
 
 .node-row {
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 2px 4px;
+  padding: 1px 4px;
   border-radius: 4px;
-  min-height: 28px;
+  min-height: 24px;
   transition: background 0.15s;
 }
 
@@ -245,7 +254,7 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   width: 20px;
-  height: 24px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -274,7 +283,7 @@ body {
   color: var(--bullet);
   cursor: pointer;
   width: 20px;
-  height: 24px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -295,8 +304,8 @@ body {
 .node-editor {
   flex: 1;
   outline: none;
-  padding: 2px 4px;
-  min-height: 24px;
+  padding: 1px 4px;
+  min-height: 22px;
   line-height: 1.5;
   word-break: break-word;
 }

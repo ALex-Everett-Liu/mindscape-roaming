@@ -1,13 +1,25 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 import { mkdirSync, existsSync, copyFileSync, unlinkSync } from "fs";
+import { Utils } from "electrobun/bun";
 
 let db: Database | null = null;
 
 const BACKUP_SUFFIX = ".backup";
 
+/**
+ * Returns the data directory for the database.
+ * Uses ELECTROBUN_APP_DATA if set (e.g. for dev override to ./data).
+ * Otherwise uses Utils.paths.userData — a stable, app-scoped path that does NOT
+ * depend on process.cwd(). Using process.cwd() caused data loss: when electrobun
+ * ran from a different dir (e.g. build output), a new empty DB was created each
+ * restart instead of reusing the existing one.
+ */
 function getDataDir(): string {
-  return process.env.ELECTROBUN_APP_DATA ?? path.join(process.cwd(), "data");
+  if (process.env.ELECTROBUN_APP_DATA) {
+    return path.resolve(process.env.ELECTROBUN_APP_DATA);
+  }
+  return Utils.paths.userData;
 }
 
 export function getDbPath(): string {
