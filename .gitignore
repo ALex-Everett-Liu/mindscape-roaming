@@ -1,0 +1,8 @@
+node_modules/
+data/
+dist/
+build/
+artifacts/
+*.db
+*.db-journal
+.DS_Store

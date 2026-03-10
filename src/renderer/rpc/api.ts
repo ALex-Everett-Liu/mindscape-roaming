@@ -1,0 +1,56 @@
+import type {
+  OutlineNode,
+  OutlineTreeNode,
+  CreateNodeParams,
+  UpdateNodeParams,
+  MoveNodeParams,
+  IndentNodeParams,
+  OutdentNodeParams,
+  DeleteNodeParams,
+  GetSubtreeParams,
+  SearchParams,
+  RpcResult,
+} from "../../shared/types";
+
+type OutlinerRpcRequest = {
+  getFullTree: (params?: Record<string, never>) => Promise<RpcResult<OutlineTreeNode[]>>;
+  getSubtree: (params: GetSubtreeParams) => Promise<RpcResult<OutlineTreeNode[]>>;
+  getNode: (params: { id: string }) => Promise<RpcResult<OutlineNode>>;
+  getAncestors: (params: { nodeId: string }) => Promise<RpcResult<OutlineNode[]>>;
+  search: (params: SearchParams) => Promise<RpcResult<OutlineNode[]>>;
+  getStats: (params?: Record<string, never>) => Promise<RpcResult<{ nodeCount: number }>>;
+  createNode: (params: CreateNodeParams) => Promise<RpcResult<OutlineNode>>;
+  updateNode: (params: UpdateNodeParams) => Promise<RpcResult<OutlineNode>>;
+  moveNode: (params: MoveNodeParams) => Promise<RpcResult<OutlineNode>>;
+  indentNode: (params: IndentNodeParams) => Promise<RpcResult<OutlineNode | null>>;
+  outdentNode: (params: OutdentNodeParams) => Promise<RpcResult<OutlineNode | null>>;
+  deleteNode: (params: DeleteNodeParams) => Promise<RpcResult<void>>;
+};
+
+let rpcRequest: OutlinerRpcRequest | null = null;
+
+export function initApi(request: OutlinerRpcRequest): void {
+  rpcRequest = request;
+}
+
+function getRpc(): OutlinerRpcRequest {
+  if (!rpcRequest) {
+    throw new Error("API not initialized. Call initApi() before using the api.");
+  }
+  return rpcRequest;
+}
+
+export const api = {
+  getFullTree: () => getRpc().getFullTree({}),
+  getSubtree: (params: GetSubtreeParams) => getRpc().getSubtree(params),
+  getNode: (id: string) => getRpc().getNode({ id }),
+  getAncestors: (nodeId: string) => getRpc().getAncestors({ nodeId }),
+  search: (params: SearchParams) => getRpc().search(params),
+  getStats: () => getRpc().getStats({}),
+  createNode: (params: CreateNodeParams) => getRpc().createNode(params),
+  updateNode: (params: UpdateNodeParams) => getRpc().updateNode(params),
+  moveNode: (params: MoveNodeParams) => getRpc().moveNode(params),
+  indentNode: (params: IndentNodeParams) => getRpc().indentNode(params),
+  outdentNode: (params: OutdentNodeParams) => getRpc().outdentNode(params),
+  deleteNode: (params: DeleteNodeParams) => getRpc().deleteNode(params),
+};
