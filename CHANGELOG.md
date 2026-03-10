@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Plugin system**: Removed skeleton concept entirely. All built-in plugins are registered at startup; users enable/disable each in Settings. Moved `loadPlugins.ts` to `plugin-system/`; deleted `skeletons.config.ts` and `skeletons/` folder.
+- **docs**: Restructured roadmap and backlog
+  - Split into `roadmap.md` (strategic) and `feature-backlog.md` (tactical implementation specs)
+  - One roadmap, one backlog — each with multiple initiatives (Save Mechanism, Soft Delete)
 
 ### Fixed
 
