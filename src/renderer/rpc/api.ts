@@ -10,6 +10,7 @@ import type {
   GetSubtreeParams,
   SearchParams,
   RpcResult,
+  PluginInfo,
 } from "../../shared/types";
 
 type OutlinerRpcRequest = {
@@ -25,6 +26,9 @@ type OutlinerRpcRequest = {
   indentNode: (params: IndentNodeParams) => Promise<RpcResult<OutlineNode | null>>;
   outdentNode: (params: OutdentNodeParams) => Promise<RpcResult<OutlineNode | null>>;
   deleteNode: (params: DeleteNodeParams) => Promise<RpcResult<void>>;
+  listPlugins: (params?: Record<string, never>) => Promise<RpcResult<PluginInfo[]>>;
+  enablePlugin: (params: { pluginId: string }) => Promise<RpcResult<boolean>>;
+  disablePlugin: (params: { pluginId: string }) => Promise<RpcResult<boolean>>;
 };
 
 let rpcRequest: OutlinerRpcRequest | null = null;
@@ -53,4 +57,7 @@ export const api = {
   indentNode: (params: IndentNodeParams) => getRpc().indentNode(params),
   outdentNode: (params: OutdentNodeParams) => getRpc().outdentNode(params),
   deleteNode: (params: DeleteNodeParams) => getRpc().deleteNode(params),
+  listPlugins: () => getRpc().listPlugins({}),
+  enablePlugin: (pluginId: string) => getRpc().enablePlugin({ pluginId }),
+  disablePlugin: (pluginId: string) => getRpc().disablePlugin({ pluginId }),
 };

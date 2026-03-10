@@ -1,2232 +1,4 @@
 
-Roudn 1: I want to use Electrobun ( https://github.com/blackboardsh/electrobun , http://blackboard.sh/electrobun ) to build a desktop outliner app like WorkFlowy but use SQLite to store its data, please design its framework for me. 
-
----
-
-# Electrobun Desktop Outliner App — Framework Design
-
-## Overview
-
-This is a comprehensive framework design for a **WorkFlowy-like outliner** built with [Electrobun](https://github.com/blackboardsh/electrobun), using SQLite for persistent storage. The architecture follows Electrobun's process model: a **Bun-based backend** (zig/bun process) handling data and logic, and a **web-based frontend** (browser view) for the UI.
-
----
-
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Electrobun App                       │
-│                                                         │
-│  ┌───────────────────────┐   ┌───────────────────────┐  │
-│  │   Bun Process (Main)  │   │  BrowserView (UI)     │  │
-│  │                       │   │                       │  │
-│  │  ┌─────────────────┐  │   │  ┌─────────────────┐  │  │
-│  │  │  SQLite Layer   │  │   │  │  Preact + HTM   │  │  │
-│  │  │  (bun:sqlite)   │  │   │  │  (Outliner UI)  │  │  │
-│  │  │                 │  │   │  │                 │  │  │
-│  │  │  - Database     │  │   │  │  - Tree View    │  │  │
-│  │  │  - Migrations   │  │   │  │  - Editor       │  │  │
-│  │  │  - Repository   │  │   │  │  - Keyboard Nav │  │  │
-│  │  └─────────────────┘  │   │  │  - Drag & Drop  │  │  │
-│  │                       │   │  └─────────────────┘  │  │
-│  │  ┌─────────────────┐  │   │                       │  │
-│  │  │  RPC Handlers   │◄─┼───┼──►  RPC Bridge       │  │
-│  │  │  (API Layer)    │  │   │   (electrobun/browser)│  │
-│  │  └─────────────────┘  │   │                       │  │
-│  └───────────────────────┘   └───────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Project Structure
-
-```
-electrobun-outliner/
-├── electrobun.config.ts            # Electrobun build/app configuration
-├── package.json
-├── tsconfig.json
-├── src/
-│   ├── main/                       # Bun process (main)
-│   │   ├── index.ts                # Entry point: window creation, RPC setup
-│   │   ├── database/
-│   │   │   ├── connection.ts       # SQLite connection manager
-│   │   │   ├── migrations.ts       # Schema migrations
-│   │   │   └── seed.ts             # Initial data seeding
-│   │   ├── repository/
-│   │   │   └── nodeRepository.ts   # Data access layer (CRUD + tree ops)
-│   │   ├── services/
-│   │   │   └── outlineService.ts   # Business logic layer
-│   │   └── rpc/
-│   │       ├── handlers.ts         # RPC handler registration
-│   │       └── types.ts            # Shared types for RPC messages
-│   │
-│   └── renderer/                   # BrowserView (frontend)
-│       ├── index.html              # HTML entry point
-│       ├── index.ts                # Frontend entry: app bootstrap
-│       ├── rpc/
-│       │   └── api.ts              # RPC client calls to main process
-│       ├── state/
-│       │   └── store.ts            # Client-side state management
-│       ├── components/
-│       │   ├── App.ts              # Root component
-│       │   ├── OutlineTree.ts      # Recursive tree renderer
-│       │   ├── OutlineNode.ts      # Single node component
-│       │   ├── NodeEditor.ts       # Inline content editor
-│       │   ├── Breadcrumb.ts       # Zoom breadcrumb trail
-│       │   └── Toolbar.ts          # Top toolbar / search
-│       ├── hooks/
-│       │   ├── useKeyboard.ts      # Keyboard shortcut handling
-│       │   └── useDragDrop.ts      # Drag and drop logic
-│       └── styles/
-│           └── main.css            # Styles
-│
-└── resources/                      # App icons, etc.
-```
-
----
-
-## 1. Electrobun Configuration
-
-```typescript
-// electrobun.config.ts
-import type { ElectrobunConfig } from "electrobun";
-
-const config: ElectrobunConfig = {
-  name: "Outliner",
-  identifier: "sh.blackboard.outliner",
-  version: "0.1.0",
-  main: "./src/main/index.ts",
-  renderer: {
-    index: "./src/renderer/index.html",
-  },
-  build: {
-    // Electrobun bundles Bun runtime + your code
-    target: "bun",
-  },
-};
-
-export default config;
-```
-
----
-
-## 2. Shared Types (RPC Contract)
-
-```typescript
-// src/main/rpc/types.ts
-
-// ─── Database Model ───────────────────────────────────
-export interface OutlineNode {
-  id: string;
-  content: string;
-  parent_id: string | null;
-  position: number;
-  is_expanded: boolean;
-  created_at: number;
-  updated_at: number;
-}
-
-// ─── Tree representation for the UI ──────────────────
-export interface OutlineTreeNode extends OutlineNode {
-  children: OutlineTreeNode[];
-  depth: number;
-}
-
-// ─── RPC Request/Response Types ──────────────────────
-
-export interface CreateNodeParams {
-  content: string;
-  parent_id: string | null;
-  position?: number; // auto-calculated if omitted
-  insertAfterId?: string; // insert after this sibling
-}
-
-export interface UpdateNodeParams {
-  id: string;
-  content?: string;
-  is_expanded?: boolean;
-}
-
-export interface MoveNodeParams {
-  id: string;
-  new_parent_id: string | null;
-  new_position: number;
-}
-
-export interface IndentNodeParams {
-  id: string; // becomes child of previous sibling
-}
-
-export interface OutdentNodeParams {
-  id: string; // becomes sibling of current parent
-}
-
-export interface DeleteNodeParams {
-  id: string;
-  deleteChildren: boolean; // true = delete subtree, false = reparent children
-}
-
-export interface GetSubtreeParams {
-  parent_id: string | null; // null = get root-level nodes
-  depth?: number;           // how many levels deep, -1 = unlimited
-}
-
-export interface SearchParams {
-  query: string;
-  limit?: number;
-}
-
-export interface ZoomParams {
-  node_id: string; // show this node as the "root"
-}
-
-// ─── RPC Response Wrappers ───────────────────────────
-export interface RpcResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-```
-
----
-
-## 3. Database Layer
-
-### 3.1 Connection Manager
-
-```typescript
-// src/main/database/connection.ts
-import { Database } from "bun:sqlite";
-import path from "path";
-
-let db: Database | null = null;
-
-export function getDatabase(): Database {
-  if (db) return db;
-
-  // Store in app data directory
-  // Electrobun provides app paths; fallback for dev
-  const dbPath = path.join(
-    process.env.ELECTROBUN_APP_DATA || "./data",
-    "outliner.db"
-  );
-
-  db = new Database(dbPath, { create: true });
-
-  // Enable WAL mode for better concurrent read/write performance
-  db.run("PRAGMA journal_mode = WAL");
-  // Enable foreign keys
-  db.run("PRAGMA foreign_keys = ON");
-  // Optimize for performance
-  db.run("PRAGMA synchronous = NORMAL");
-  db.run("PRAGMA cache_size = -64000"); // 64MB cache
-
-  return db;
-}
-
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-  }
-}
-```
-
-### 3.2 Migrations
-
-```typescript
-// src/main/database/migrations.ts
-import { Database } from "bun:sqlite";
-
-interface Migration {
-  version: number;
-  name: string;
-  up: string;
-}
-
-const migrations: Migration[] = [
-  {
-    version: 1,
-    name: "create_outline_nodes",
-    up: `
-      CREATE TABLE IF NOT EXISTS outline_nodes (
-        id          TEXT PRIMARY KEY,
-        content     TEXT NOT NULL DEFAULT '',
-        parent_id   TEXT,
-        position    INTEGER NOT NULL DEFAULT 0,
-        is_expanded INTEGER NOT NULL DEFAULT 1,
-        created_at  INTEGER NOT NULL,
-        updated_at  INTEGER NOT NULL,
-        FOREIGN KEY (parent_id) REFERENCES outline_nodes(id) ON DELETE CASCADE
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_nodes_parent_id ON outline_nodes(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_nodes_parent_position ON outline_nodes(parent_id, position);
-      CREATE INDEX IF NOT EXISTS idx_nodes_content ON outline_nodes(content);
-    `,
-  },
-  {
-    version: 2,
-    name: "create_metadata_table",
-    up: `
-      CREATE TABLE IF NOT EXISTS app_metadata (
-        key   TEXT PRIMARY KEY,
-        value TEXT
-      );
-    `,
-  },
-  {
-    version: 3,
-    name: "add_is_deleted_soft_delete",
-    up: `
-      ALTER TABLE outline_nodes ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;
-      CREATE INDEX IF NOT EXISTS idx_nodes_deleted ON outline_nodes(is_deleted);
-    `,
-  },
-  {
-    version: 4,
-    name: "add_fts_search",
-    up: `
-      CREATE VIRTUAL TABLE IF NOT EXISTS outline_nodes_fts USING fts5(
-        content,
-        content='outline_nodes',
-        content_rowid='rowid'
-      );
-
-      -- Triggers to keep FTS in sync
-      CREATE TRIGGER IF NOT EXISTS outline_nodes_ai AFTER INSERT ON outline_nodes BEGIN
-        INSERT INTO outline_nodes_fts(rowid, content) VALUES (NEW.rowid, NEW.content);
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS outline_nodes_ad AFTER DELETE ON outline_nodes BEGIN
-        INSERT INTO outline_nodes_fts(outline_nodes_fts, rowid, content) VALUES('delete', OLD.rowid, OLD.content);
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS outline_nodes_au AFTER UPDATE OF content ON outline_nodes BEGIN
-        INSERT INTO outline_nodes_fts(outline_nodes_fts, rowid, content) VALUES('delete', OLD.rowid, OLD.content);
-        INSERT INTO outline_nodes_fts(rowid, content) VALUES (NEW.rowid, NEW.content);
-      END;
-    `,
-  },
-];
-
-export function runMigrations(db: Database): void {
-  // Create migrations tracking table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      version  INTEGER PRIMARY KEY,
-      name     TEXT NOT NULL,
-      applied_at INTEGER NOT NULL
-    );
-  `);
-
-  const applied = db
-    .query("SELECT version FROM _migrations ORDER BY version")
-    .all() as { version: number }[];
-
-  const appliedVersions = new Set(applied.map((m) => m.version));
-
-  for (const migration of migrations) {
-    if (appliedVersions.has(migration.version)) continue;
-
-    console.log(`Running migration ${migration.version}: ${migration.name}`);
-
-    db.transaction(() => {
-      // Execute multi-statement migration
-      const statements = migration.up
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      for (const stmt of statements) {
-        db.run(stmt);
-      }
-
-      db.run(
-        "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)",
-        [migration.version, migration.name, Date.now()]
-      );
-    })();
-  }
-}
-```
-
-### 3.3 Seed Data
-
-```typescript
-// src/main/database/seed.ts
-import { Database } from "bun:sqlite";
-import { v4 as uuidv4 } from "uuid";
-
-export function seedInitialData(db: Database): void {
-  const count = db.query("SELECT COUNT(*) as count FROM outline_nodes").get() as { count: number };
-
-  if (count.count > 0) return; // Already has data
-
-  const now = Date.now();
-
-  const rootId = uuidv4();
-  const child1Id = uuidv4();
-  const child2Id = uuidv4();
-  const grandchildId = uuidv4();
-
-  const insert = db.prepare(`
-    INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, created_at, updated_at, is_deleted)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-  `);
-
-  db.transaction(() => {
-    insert.run(rootId, "Welcome to Outliner", null, 0, 1, now, now);
-    insert.run(child1Id, "Click on any bullet to zoom in", rootId, 0, 1, now, now);
-    insert.run(child2Id, "Use Tab/Shift+Tab to indent/outdent", rootId, 1, 1, now, now);
-    insert.run(grandchildId, "Press Enter to create a new sibling", child1Id, 0, 1, now, now);
-  })();
-}
-```
-
----
-
-## 4. Repository Layer (Data Access)
-
-```typescript
-// src/main/repository/nodeRepository.ts
-import { Database } from "bun:sqlite";
-import { v4 as uuidv4 } from "uuid";
-import type { OutlineNode, OutlineTreeNode } from "../rpc/types";
-
-export class NodeRepository {
-  private db: Database;
-
-  // Prepared statements (cached for performance)
-  private stmtGetById;
-  private stmtGetChildren;
-  private stmtInsert;
-  private stmtUpdateContent;
-  private stmtUpdateExpanded;
-  private stmtUpdatePosition;
-  private stmtUpdateParent;
-  private stmtDelete;
-  private stmtSoftDelete;
-  private stmtGetMaxPosition;
-  private stmtShiftPositions;
-
-  constructor(db: Database) {
-    this.db = db;
-    this.prepareStatements();
-  }
-
-  private prepareStatements(): void {
-    this.stmtGetById = this.db.prepare(
-      "SELECT * FROM outline_nodes WHERE id = ? AND is_deleted = 0"
-    );
-
-    this.stmtGetChildren = this.db.prepare(
-      "SELECT * FROM outline_nodes WHERE parent_id = ? AND is_deleted = 0 ORDER BY position ASC"
-    );
-
-    this.stmtInsert = this.db.prepare(`
-      INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, created_at, updated_at, is_deleted)
-      VALUES ($id, $content, $parent_id, $position, $is_expanded, $created_at, $updated_at, 0)
-    `);
-
-    this.stmtUpdateContent = this.db.prepare(
-      "UPDATE outline_nodes SET content = ?, updated_at = ? WHERE id = ?"
-    );
-
-    this.stmtUpdateExpanded = this.db.prepare(
-      "UPDATE outline_nodes SET is_expanded = ?, updated_at = ? WHERE id = ?"
-    );
-
-    this.stmtUpdatePosition = this.db.prepare(
-      "UPDATE outline_nodes SET position = ?, updated_at = ? WHERE id = ?"
-    );
-
-    this.stmtUpdateParent = this.db.prepare(
-      "UPDATE outline_nodes SET parent_id = ?, position = ?, updated_at = ? WHERE id = ?"
-    );
-
-    this.stmtDelete = this.db.prepare(
-      "DELETE FROM outline_nodes WHERE id = ?"
-    );
-
-    this.stmtSoftDelete = this.db.prepare(
-      "UPDATE outline_nodes SET is_deleted = 1, updated_at = ? WHERE id = ?"
-    );
-
-    this.stmtGetMaxPosition = this.db.prepare(
-      "SELECT MAX(position) as max_pos FROM outline_nodes WHERE parent_id IS ? AND is_deleted = 0"
-    );
-
-    this.stmtShiftPositions = this.db.prepare(
-      "UPDATE outline_nodes SET position = position + ? WHERE parent_id IS ? AND position >= ? AND is_deleted = 0"
-    );
-  }
-
-  // ─── READ Operations ─────────────────────────────────
-
-  getById(id: string): OutlineNode | null {
-    return this.stmtGetById.get(id) as OutlineNode | null;
-  }
-
-  getChildren(parentId: string | null): OutlineNode[] {
-    // bun:sqlite handles NULL binding for IS comparison
-    if (parentId === null) {
-      return this.db
-        .query("SELECT * FROM outline_nodes WHERE parent_id IS NULL AND is_deleted = 0 ORDER BY position ASC")
-        .all() as OutlineNode[];
-    }
-    return this.stmtGetChildren.all(parentId) as OutlineNode[];
-  }
-
-  getRootNodes(): OutlineNode[] {
-    return this.getChildren(null);
-  }
-
-  /**
-   * Build a tree structure recursively.
-   * @param parentId - Start from this parent (null = root)
-   * @param maxDepth - Maximum depth to fetch (-1 = unlimited)
-   * @param currentDepth - Internal tracker
-   */
-  getSubtree(
-    parentId: string | null = null,
-    maxDepth: number = -1,
-    currentDepth: number = 0
-  ): OutlineTreeNode[] {
-    if (maxDepth !== -1 && currentDepth > maxDepth) return [];
-
-    const children = this.getChildren(parentId);
-
-    return children.map((node) => ({
-      ...node,
-      is_expanded: Boolean(node.is_expanded),
-      depth: currentDepth,
-      children:
-        maxDepth === -1 || currentDepth < maxDepth
-          ? this.getSubtree(node.id, maxDepth, currentDepth + 1)
-          : [],
-    }));
-  }
-
-  /**
-   * Get ancestors of a node (for breadcrumb).
-   */
-  getAncestors(nodeId: string): OutlineNode[] {
-    const ancestors: OutlineNode[] = [];
-    let current = this.getById(nodeId);
-
-    while (current && current.parent_id) {
-      const parent = this.getById(current.parent_id);
-      if (parent) ancestors.unshift(parent);
-      current = parent;
-    }
-
-    return ancestors;
-  }
-
-  /**
-   * Full-text search using FTS5.
-   */
-  search(query: string, limit: number = 50): OutlineNode[] {
-    const ftsQuery = query
-      .split(/\s+/)
-      .map((term) => `"${term}"*`)
-      .join(" AND ");
-
-    return this.db
-      .query(
-        `
-        SELECT n.* FROM outline_nodes n
-        JOIN outline_nodes_fts fts ON n.rowid = fts.rowid
-        WHERE outline_nodes_fts MATCH ? AND n.is_deleted = 0
-        ORDER BY rank
-        LIMIT ?
-      `
-      )
-      .all(ftsQuery, limit) as OutlineNode[];
-  }
-
-  // ─── WRITE Operations ────────────────────────────────
-
-  /**
-   * Create a new node. Returns the created node.
-   */
-  create(
-    content: string,
-    parentId: string | null,
-    position?: number
-  ): OutlineNode {
-    const id = uuidv4();
-    const now = Date.now();
-
-    // Auto-calculate position if not provided
-    if (position === undefined) {
-      const result = this.stmtGetMaxPosition.get(parentId) as {
-        max_pos: number | null;
-      };
-      position = (result.max_pos ?? -1) + 1;
-    } else {
-      // Shift existing siblings to make room
-      this.stmtShiftPositions.run(1, parentId, position);
-    }
-
-    this.stmtInsert.run({
-      $id: id,
-      $content: content,
-      $parent_id: parentId,
-      $position: position,
-      $is_expanded: 1,
-      $created_at: now,
-      $updated_at: now,
-    });
-
-    return this.getById(id)!;
-  }
-
-  /**
-   * Insert a new node after a specific sibling.
-   */
-  createAfter(
-    content: string,
-    afterSiblingId: string
-  ): OutlineNode {
-    const sibling = this.getById(afterSiblingId);
-    if (!sibling) throw new Error(`Node ${afterSiblingId} not found`);
-
-    return this.create(content, sibling.parent_id, sibling.position + 1);
-  }
-
-  /**
-   * Update node content.
-   */
-  updateContent(id: string, content: string): OutlineNode {
-    this.stmtUpdateContent.run(content, Date.now(), id);
-    return this.getById(id)!;
-  }
-
-  /**
-   * Toggle or set expanded state.
-   */
-  updateExpanded(id: string, isExpanded: boolean): OutlineNode {
-    this.stmtUpdateExpanded.run(isExpanded ? 1 : 0, Date.now(), id);
-    return this.getById(id)!;
-  }
-
-  /**
-   * Move a node to a new parent/position.
-   */
-  move(id: string, newParentId: string | null, newPosition: number): OutlineNode {
-    const node = this.getById(id);
-    if (!node) throw new Error(`Node ${id} not found`);
-
-    return this.db.transaction(() => {
-      // Close the gap in the old parent
-      this.db.run(
-        "UPDATE outline_nodes SET position = position - 1 WHERE parent_id IS ? AND position > ? AND is_deleted = 0",
-        [node.parent_id, node.position]
-      );
-
-      // Make room in the new parent
-      this.stmtShiftPositions.run(1, newParentId, newPosition);
-
-      // Move the node
-      this.stmtUpdateParent.run(newParentId, newPosition, Date.now(), id);
-
-      return this.getById(id)!;
-    })();
-  }
-
-  /**
-   * Indent: make this node a child of its previous sibling.
-   */
-  indent(id: string): OutlineNode | null {
-    const node = this.getById(id);
-    if (!node || node.position === 0) return null; // Can't indent first child
-
-    // Find previous sibling
-    const prevSibling = this.db
-      .query(
-        "SELECT * FROM outline_nodes WHERE parent_id IS ? AND position = ? AND is_deleted = 0"
-      )
-      .get(node.parent_id, node.position - 1) as OutlineNode | null;
-
-    if (!prevSibling) return null;
-
-    // Move node to be the last child of previous sibling
-    const maxPos = this.stmtGetMaxPosition.get(prevSibling.id) as {
-      max_pos: number | null;
-    };
-    const newPosition = (maxPos.max_pos ?? -1) + 1;
-
-    return this.move(id, prevSibling.id, newPosition);
-  }
-
-  /**
-   * Outdent: make this node a sibling of its parent.
-   */
-  outdent(id: string): OutlineNode | null {
-    const node = this.getById(id);
-    if (!node || !node.parent_id) return null; // Can't outdent root-level
-
-    const parent = this.getById(node.parent_id);
-    if (!parent) return null;
-
-    // Move to be the sibling right after parent
-    return this.move(id, parent.parent_id, parent.position + 1);
-  }
-
-  /**
-   * Soft-delete a node and all its descendants.
-   */
-  softDeleteSubtree(id: string): void {
-    const now = Date.now();
-
-    this.db.transaction(() => {
-      // Recursive CTE to find all descendants
-      const descendants = this.db
-        .query(
-          `
-          WITH RECURSIVE subtree AS (
-            SELECT id FROM outline_nodes WHERE id = ?
-            UNION ALL
-            SELECT n.id FROM outline_nodes n
-            JOIN subtree s ON n.parent_id = s.id
-          )
-          SELECT id FROM subtree
-        `
-        )
-        .all(id) as { id: string }[];
-
-      for (const desc of descendants) {
-        this.stmtSoftDelete.run(now, desc.id);
-      }
-
-      // Close position gap for the deleted node
-      const node = this.getById(id); // already soft-deleted, need raw query
-      const rawNode = this.db
-        .query("SELECT * FROM outline_nodes WHERE id = ?")
-        .get(id) as OutlineNode | null;
-
-      if (rawNode) {
-        this.db.run(
-          "UPDATE outline_nodes SET position = position - 1 WHERE parent_id IS ? AND position > ? AND is_deleted = 0",
-          [rawNode.parent_id, rawNode.position]
-        );
-      }
-    })();
-  }
-
-  /**
-   * Reparent children before deleting a node.
-   */
-  deleteAndReparent(id: string): void {
-    const node = this.getById(id);
-    if (!node) return;
-
-    this.db.transaction(() => {
-      const children = this.getChildren(id);
-
-      // Move each child to the deleted node's parent
-      for (let i = 0; i < children.length; i++) {
-        this.stmtUpdateParent.run(
-          node.parent_id,
-          node.position + i,
-          Date.now(),
-          children[i].id
-        );
-      }
-
-      // Shift siblings after the deleted node to accommodate
-      if (children.length > 1) {
-        this.db.run(
-          "UPDATE outline_nodes SET position = position + ? WHERE parent_id IS ? AND position > ? AND id != ? AND is_deleted = 0",
-          [children.length - 1, node.parent_id, node.position, id]
-        );
-      }
-
-      this.stmtSoftDelete.run(Date.now(), id);
-    })();
-  }
-
-  /**
-   * Normalize positions for siblings (close gaps).
-   */
-  reorderChildren(parentId: string | null): void {
-    const children = this.getChildren(parentId);
-
-    this.db.transaction(() => {
-      children.forEach((child, index) => {
-        if (child.position !== index) {
-          this.stmtUpdatePosition.run(index, Date.now(), child.id);
-        }
-      });
-    })();
-  }
-
-  /**
-   * Get count of all active nodes.
-   */
-  getNodeCount(): number {
-    const result = this.db
-      .query("SELECT COUNT(*) as count FROM outline_nodes WHERE is_deleted = 0")
-      .get() as { count: number };
-    return result.count;
-  }
-}
-```
-
----
-
-## 5. Service Layer (Business Logic)
-
-```typescript
-// src/main/services/outlineService.ts
-import type { Database } from "bun:sqlite";
-import { NodeRepository } from "../repository/nodeRepository";
-import type {
-  OutlineNode,
-  OutlineTreeNode,
-  CreateNodeParams,
-  UpdateNodeParams,
-  MoveNodeParams,
-  IndentNodeParams,
-  OutdentNodeParams,
-  DeleteNodeParams,
-  GetSubtreeParams,
-  SearchParams,
-  RpcResult,
-} from "../rpc/types";
-
-export class OutlineService {
-  private repo: NodeRepository;
-
-  constructor(db: Database) {
-    this.repo = new NodeRepository(db);
-  }
-
-  // ─── Queries ──────────────────────────────────────────
-
-  getFullTree(): RpcResult<OutlineTreeNode[]> {
-    try {
-      const tree = this.repo.getSubtree(null, -1);
-      return { success: true, data: tree };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  getSubtree(params: GetSubtreeParams): RpcResult<OutlineTreeNode[]> {
-    try {
-      const tree = this.repo.getSubtree(params.parent_id, params.depth ?? -1);
-      return { success: true, data: tree };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  getNode(id: string): RpcResult<OutlineNode> {
-    try {
-      const node = this.repo.getById(id);
-      if (!node) return { success: false, error: "Node not found" };
-      return { success: true, data: node };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  getAncestors(nodeId: string): RpcResult<OutlineNode[]> {
-    try {
-      return { success: true, data: this.repo.getAncestors(nodeId) };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  search(params: SearchParams): RpcResult<OutlineNode[]> {
-    try {
-      const results = this.repo.search(params.query, params.limit);
-      return { success: true, data: results };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  // ─── Mutations ────────────────────────────────────────
-
-  createNode(params: CreateNodeParams): RpcResult<OutlineNode> {
-    try {
-      let node: OutlineNode;
-
-      if (params.insertAfterId) {
-        node = this.repo.createAfter(params.content, params.insertAfterId);
-      } else {
-        node = this.repo.create(params.content, params.parent_id, params.position);
-      }
-
-      return { success: true, data: node };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  updateNode(params: UpdateNodeParams): RpcResult<OutlineNode> {
-    try {
-      let node: OutlineNode | null = null;
-
-      if (params.content !== undefined) {
-        node = this.repo.updateContent(params.id, params.content);
-      }
-
-      if (params.is_expanded !== undefined) {
-        node = this.repo.updateExpanded(params.id, params.is_expanded);
-      }
-
-      if (!node) {
-        node = this.repo.getById(params.id);
-      }
-
-      return { success: true, data: node! };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  moveNode(params: MoveNodeParams): RpcResult<OutlineNode> {
-    try {
-      const node = this.repo.move(params.id, params.new_parent_id, params.new_position);
-      return { success: true, data: node };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  indentNode(params: IndentNodeParams): RpcResult<OutlineNode | null> {
-    try {
-      const node = this.repo.indent(params.id);
-      return { success: true, data: node };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  outdentNode(params: OutdentNodeParams): RpcResult<OutlineNode | null> {
-    try {
-      const node = this.repo.outdent(params.id);
-      return { success: true, data: node };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  deleteNode(params: DeleteNodeParams): RpcResult<void> {
-    try {
-      if (params.deleteChildren) {
-        this.repo.softDeleteSubtree(params.id);
-      } else {
-        this.repo.deleteAndReparent(params.id);
-      }
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-
-  // ─── Utility ──────────────────────────────────────────
-
-  getStats(): RpcResult<{ nodeCount: number }> {
-    try {
-      return {
-        success: true,
-        data: { nodeCount: this.repo.getNodeCount() },
-      };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  }
-}
-```
-
----
-
-## 6. RPC Handlers (Main Process ↔ Renderer Bridge)
-
-```typescript
-// src/main/rpc/handlers.ts
-import { type BrowserView } from "electrobun/bun";
-import { OutlineService } from "../services/outlineService";
-import type {
-  CreateNodeParams,
-  UpdateNodeParams,
-  MoveNodeParams,
-  IndentNodeParams,
-  OutdentNodeParams,
-  DeleteNodeParams,
-  GetSubtreeParams,
-  SearchParams,
-} from "./types";
-
-/**
- * Register all RPC handlers that the renderer can call.
- * 
- * Electrobun's RPC system allows type-safe communication between
- * the Bun main process and BrowserView renderer processes.
- */
-export function registerRpcHandlers(
-  browserView: BrowserView,
-  service: OutlineService
-): void {
-  const rpc = browserView.rpc;
-
-  // ─── Tree Queries ───────────────────────────────────
-
-  rpc.handle("getFullTree", async () => {
-    return service.getFullTree();
-  });
-
-  rpc.handle("getSubtree", async (params: GetSubtreeParams) => {
-    return service.getSubtree(params);
-  });
-
-  rpc.handle("getNode", async (params: { id: string }) => {
-    return service.getNode(params.id);
-  });
-
-  rpc.handle("getAncestors", async (params: { nodeId: string }) => {
-    return service.getAncestors(params.nodeId);
-  });
-
-  rpc.handle("search", async (params: SearchParams) => {
-    return service.search(params);
-  });
-
-  rpc.handle("getStats", async () => {
-    return service.getStats();
-  });
-
-  // ─── Mutations ──────────────────────────────────────
-
-  rpc.handle("createNode", async (params: CreateNodeParams) => {
-    return service.createNode(params);
-  });
-
-  rpc.handle("updateNode", async (params: UpdateNodeParams) => {
-    return service.updateNode(params);
-  });
-
-  rpc.handle("moveNode", async (params: MoveNodeParams) => {
-    return service.moveNode(params);
-  });
-
-  rpc.handle("indentNode", async (params: IndentNodeParams) => {
-    return service.indentNode(params);
-  });
-
-  rpc.handle("outdentNode", async (params: OutdentNodeParams) => {
-    return service.outdentNode(params);
-  });
-
-  rpc.handle("deleteNode", async (params: DeleteNodeParams) => {
-    return service.deleteNode(params);
-  });
-}
-```
-
----
-
-## 7. Main Process Entry Point
-
-```typescript
-// src/main/index.ts
-import { Electrobun, BrowserWindow } from "electrobun/bun";
-import { getDatabase, closeDatabase } from "./database/connection";
-import { runMigrations } from "./database/migrations";
-import { seedInitialData } from "./database/seed";
-import { OutlineService } from "./services/outlineService";
-import { registerRpcHandlers } from "./rpc/handlers";
-
-// ─── Initialize Database ──────────────────────────────
-const db = getDatabase();
-runMigrations(db);
-seedInitialData(db);
-
-// ─── Initialize Service Layer ─────────────────────────
-const outlineService = new OutlineService(db);
-
-// ─── Create Main Window ───────────────────────────────
-const mainWindow = new BrowserWindow({
-  title: "Outliner",
-  width: 900,
-  height: 700,
-  minWidth: 400,
-  minHeight: 300,
-  url: "electrobun://renderer/index.html", // Electrobun serves bundled renderer
-});
-
-// ─── Register RPC Handlers ────────────────────────────
-registerRpcHandlers(mainWindow.browserView, outlineService);
-
-// ─── App Lifecycle ────────────────────────────────────
-Electrobun.events.on("will-quit", () => {
-  closeDatabase();
-});
-
-// Handle window close
-mainWindow.on("close", () => {
-  Electrobun.quit();
-});
-```
-
----
-
-## 8. Frontend — RPC Client API
-
-```typescript
-// src/renderer/rpc/api.ts
-import { rpc } from "electrobun/browser";
-import type {
-  OutlineNode,
-  OutlineTreeNode,
-  CreateNodeParams,
-  UpdateNodeParams,
-  MoveNodeParams,
-  IndentNodeParams,
-  OutdentNodeParams,
-  DeleteNodeParams,
-  GetSubtreeParams,
-  SearchParams,
-  RpcResult,
-} from "../../main/rpc/types";
-
-/**
- * Type-safe API client wrapping Electrobun RPC calls to the main process.
- */
-export const api = {
-  // ─── Queries ────────────────────────────────────────
-  getFullTree: (): Promise<RpcResult<OutlineTreeNode[]>> =>
-    rpc.invoke("getFullTree"),
-
-  getSubtree: (params: GetSubtreeParams): Promise<RpcResult<OutlineTreeNode[]>> =>
-    rpc.invoke("getSubtree", params),
-
-  getNode: (id: string): Promise<RpcResult<OutlineNode>> =>
-    rpc.invoke("getNode", { id }),
-
-  getAncestors: (nodeId: string): Promise<RpcResult<OutlineNode[]>> =>
-    rpc.invoke("getAncestors", { nodeId }),
-
-  search: (params: SearchParams): Promise<RpcResult<OutlineNode[]>> =>
-    rpc.invoke("search", params),
-
-  getStats: (): Promise<RpcResult<{ nodeCount: number }>> =>
-    rpc.invoke("getStats"),
-
-  // ─── Mutations ──────────────────────────────────────
-  createNode: (params: CreateNodeParams): Promise<RpcResult<OutlineNode>> =>
-    rpc.invoke("createNode", params),
-
-  updateNode: (params: UpdateNodeParams): Promise<RpcResult<OutlineNode>> =>
-    rpc.invoke("updateNode", params),
-
-  moveNode: (params: MoveNodeParams): Promise<RpcResult<OutlineNode>> =>
-    rpc.invoke("moveNode", params),
-
-  indentNode: (params: IndentNodeParams): Promise<RpcResult<OutlineNode | null>> =>
-    rpc.invoke("indentNode", params),
-
-  outdentNode: (params: OutdentNodeParams): Promise<RpcResult<OutlineNode | null>> =>
-    rpc.invoke("outdentNode", params),
-
-  deleteNode: (params: DeleteNodeParams): Promise<RpcResult<void>> =>
-    rpc.invoke("deleteNode", params),
-};
-```
-
----
-
-## 9. Frontend — State Management
-
-```typescript
-// src/renderer/state/store.ts
-import type { OutlineTreeNode, OutlineNode } from "../../main/rpc/types";
-import { api } from "../rpc/api";
-
-export interface AppState {
-  tree: OutlineTreeNode[];
-  zoomedNodeId: string | null;     // Current "root" for zoomed view
-  breadcrumbs: OutlineNode[];       // Ancestors of zoomed node
-  focusedNodeId: string | null;     // Currently focused/editing node
-  searchQuery: string;
-  searchResults: OutlineNode[];
-  isSearching: boolean;
-  loading: boolean;
-}
-
-type Listener = (state: AppState) => void;
-
-class Store {
-  private state: AppState = {
-    tree: [],
-    zoomedNodeId: null,
-    breadcrumbs: [],
-    focusedNodeId: null,
-    searchQuery: "",
-    searchResults: [],
-    isSearching: false,
-    loading: true,
-  };
-
-  private listeners: Set<Listener> = new Set();
-
-  getState(): AppState {
-    return this.state;
-  }
-
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  private emit(): void {
-    for (const listener of this.listeners) {
-      listener(this.state);
-    }
-  }
-
-  private update(partial: Partial<AppState>): void {
-    this.state = { ...this.state, ...partial };
-    this.emit();
-  }
-
-  // ─── Actions ──────────────────────────────────────────
-
-  async loadTree(): Promise<void> {
-    this.update({ loading: true });
-
-    const parentId = this.state.zoomedNodeId;
-    const result = await api.getSubtree({ parent_id: parentId });
-
-    if (result.success) {
-      this.update({ tree: result.data!, loading: false });
-
-      // Load breadcrumbs if zoomed
-      if (parentId) {
-        const ancestors = await api.getAncestors(parentId);
-        const zoomedNode = await api.getNode(parentId);
-        if (ancestors.success && zoomedNode.success) {
-          this.update({
-            breadcrumbs: [...ancestors.data!, zoomedNode.data!],
-          });
-        }
-      } else {
-        this.update({ breadcrumbs: [] });
-      }
-    }
-  }
-
-  async createNode(afterId: string | null, parentId: string | null): Promise<OutlineNode | null> {
-    const params = afterId
-      ? { content: "", parent_id: parentId, insertAfterId: afterId }
-      : { content: "", parent_id: parentId };
-
-    const result = await api.createNode(params);
-    if (result.success) {
-      await this.loadTree();
-      this.update({ focusedNodeId: result.data!.id });
-      return result.data!;
-    }
-    return null;
-  }
-
-  async updateContent(id: string, content: string): Promise<void> {
-    await api.updateNode({ id, content });
-    // Optimistic: update local tree without full reload
-    this.updateNodeInTree(id, { content });
-  }
-
-  async toggleExpanded(id: string): Promise<void> {
-    const node = this.findNodeInTree(id);
-    if (!node) return;
-
-    const newExpanded = !node.is_expanded;
-    await api.updateNode({ id, is_expanded: newExpanded });
-    this.updateNodeInTree(id, { is_expanded: newExpanded });
-  }
-
-  async indentNode(id: string): Promise<void> {
-    const result = await api.indentNode({ id });
-    if (result.success && result.data) {
-      await this.loadTree();
-      this.update({ focusedNodeId: id });
-    }
-  }
-
-  async outdentNode(id: string): Promise<void> {
-    const result = await api.outdentNode({ id });
-    if (result.success && result.data) {
-      await this.loadTree();
-      this.update({ focusedNodeId: id });
-    }
-  }
-
-  async deleteNode(id: string): Promise<void> {
-    await api.deleteNode({ id, deleteChildren: true });
-    await this.loadTree();
-  }
-
-  async moveNode(
-    id: string,
-    newParentId: string | null,
-    newPosition: number
-  ): Promise<void> {
-    await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
-    await this.loadTree();
-  }
-
-  async zoomIn(nodeId: string): Promise<void> {
-    this.update({ zoomedNodeId: nodeId });
-    await this.loadTree();
-  }
-
-  async zoomOut(): Promise<void> {
-    // Go up one level
-    if (this.state.breadcrumbs.length > 1) {
-      const parent = this.state.breadcrumbs[this.state.breadcrumbs.length - 2];
-      this.update({ zoomedNodeId: parent.id });
-    } else {
-      this.update({ zoomedNodeId: null });
-    }
-    await this.loadTree();
-  }
-
-  async zoomToRoot(): Promise<void> {
-    this.update({ zoomedNodeId: null });
-    await this.loadTree();
-  }
-
-  async search(query: string): Promise<void> {
-    if (!query.trim()) {
-      this.update({ searchQuery: "", searchResults: [], isSearching: false });
-      return;
-    }
-
-    this.update({ searchQuery: query, isSearching: true });
-    const result = await api.search({ query, limit: 50 });
-
-    if (result.success) {
-      this.update({ searchResults: result.data!, isSearching: false });
-    }
-  }
-
-  setFocusedNode(id: string | null): void {
-    this.update({ focusedNodeId: id });
-  }
-
-  // ─── Helpers ──────────────────────────────────────────
-
-  private findNodeInTree(
-    id: string,
-    nodes: OutlineTreeNode[] = this.state.tree
-  ): OutlineTreeNode | null {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      const found = this.findNodeInTree(id, node.children);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  private updateNodeInTree(
-    id: string,
-    updates: Partial<OutlineTreeNode>
-  ): void {
-    const updatedTree = this.deepUpdateTree(this.state.tree, id, updates);
-    this.update({ tree: updatedTree });
-  }
-
-  private deepUpdateTree(
-    nodes: OutlineTreeNode[],
-    id: string,
-    updates: Partial<OutlineTreeNode>
-  ): OutlineTreeNode[] {
-    return nodes.map((node) => {
-      if (node.id === id) {
-        return { ...node, ...updates };
-      }
-      if (node.children.length > 0) {
-        return {
-          ...node,
-          children: this.deepUpdateTree(node.children, id, updates),
-        };
-      }
-      return node;
-    });
-  }
-}
-
-export const store = new Store();
-```
-
----
-
-## 10. Frontend — Components
-
-### 10.1 HTML Entry Point
-
-```html
-<!-- src/renderer/index.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Outliner</title>
-  <link rel="stylesheet" href="./styles/main.css" />
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="./index.ts"></script>
-</body>
-</html>
-```
-
-### 10.2 App Bootstrap
-
-```typescript
-// src/renderer/index.ts
-import { render } from "preact";
-import { html } from "htm/preact";
-import { App } from "./components/App";
-import { store } from "./state/store";
-
-// Initial data load
-store.loadTree();
-
-// Render app
-render(html`<${App} />`, document.getElementById("app")!);
-```
-
-### 10.3 Root App Component
-
-```typescript
-// src/renderer/components/App.ts
-import { useState, useEffect } from "preact/hooks";
-import { html } from "htm/preact";
-import { store, type AppState } from "../state/store";
-import { Toolbar } from "./Toolbar";
-import { Breadcrumb } from "./Breadcrumb";
-import { OutlineTree } from "./OutlineTree";
-
-export function App() {
-  const [state, setState] = useState<AppState>(store.getState());
-
-  useEffect(() => {
-    return store.subscribe(setState);
-  }, []);
-
-  if (state.loading) {
-    return html`<div class="loading">Loading...</div>`;
-  }
-
-  return html`
-    <div class="app">
-      <${Toolbar}
-        searchQuery=${state.searchQuery}
-        onSearch=${(q: string) => store.search(q)}
-      />
-
-      ${state.breadcrumbs.length > 0 && html`
-        <${Breadcrumb}
-          ancestors=${state.breadcrumbs}
-          onNavigate=${(id: string | null) => id ? store.zoomIn(id) : store.zoomToRoot()}
-        />
-      `}
-
-      ${state.searchQuery
-        ? html`
-          <div class="search-results">
-            ${state.searchResults.map((node) => html`
-              <div class="search-result" onClick=${() => { store.search(""); store.zoomIn(node.id); }}>
-                ${node.content || "(empty)"}
-              </div>
-            `)}
-          </div>
-        `
-        : html`
-          <${OutlineTree}
-            nodes=${state.tree}
-            focusedNodeId=${state.focusedNodeId}
-          />
-        `
-      }
-    </div>
-  `;
-}
-```
-
-### 10.4 Outline Tree (Recursive)
-
-```typescript
-// src/renderer/components/OutlineTree.ts
-import { html } from "htm/preact";
-import type { OutlineTreeNode } from "../../main/rpc/types";
-import { OutlineNode } from "./OutlineNode";
-
-interface Props {
-  nodes: OutlineTreeNode[];
-  focusedNodeId: string | null;
-}
-
-export function OutlineTree({ nodes, focusedNodeId }: Props) {
-  if (nodes.length === 0) {
-    return html`
-      <div class="empty-state">
-        <p>No items yet. Press <kbd>Enter</kbd> to create one.</p>
-      </div>
-    `;
-  }
-
-  return html`
-    <ul class="outline-tree" role="tree">
-      ${nodes.map((node) => html`
-        <${OutlineNode}
-          key=${node.id}
-          node=${node}
-          focusedNodeId=${focusedNodeId}
-        />
-      `)}
-    </ul>
-  `;
-}
-```
-
-### 10.5 Outline Node (Single Item)
-
-```typescript
-// src/renderer/components/OutlineNode.ts
-import { useRef, useEffect, useCallback } from "preact/hooks";
-import { html } from "htm/preact";
-import type { OutlineTreeNode } from "../../main/rpc/types";
-import { store } from "../state/store";
-import { NodeEditor } from "./NodeEditor";
-import { OutlineTree } from "./OutlineTree";
-
-interface Props {
-  node: OutlineTreeNode;
-  focusedNodeId: string | null;
-}
-
-export function OutlineNode({ node, focusedNodeId }: Props) {
-  const liRef = useRef<HTMLLIElement>(null);
-  const isFocused = focusedNodeId === node.id;
-  const hasChildren = node.children.length > 0;
-
-  // ─── Keyboard handling ────────────────────────────
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "Enter":
-          e.preventDefault();
-          // Create new sibling after this node
-          store.createNode(node.id, node.parent_id);
-          break;
-
-        case "Tab":
-          e.preventDefault();
-          if (e.shiftKey) {
-            store.outdentNode(node.id);
-          } else {
-            store.indentNode(node.id);
-          }
-          break;
-
-        case "Backspace":
-          // Delete node if content is empty
-          if (node.content === "") {
-            e.preventDefault();
-            store.deleteNode(node.id);
-          }
-          break;
-
-        case "ArrowUp":
-          if (e.altKey) {
-            // Move node up (swap with previous sibling)
-            e.preventDefault();
-            if (node.position > 0) {
-              store.moveNode(node.id, node.parent_id, node.position - 1);
-            }
-          }
-          break;
-
-        case "ArrowDown":
-          if (e.altKey) {
-            e.preventDefault();
-            store.moveNode(node.id, node.parent_id, node.position + 1);
-          }
-          break;
-      }
-    },
-    [node]
-  );
-
-  // ─── Bullet click → zoom ─────────────────────────
-  const handleBulletClick = useCallback(
-    (e: MouseEvent) => {
-      e.stopPropagation();
-      if (hasChildren) {
-        store.zoomIn(node.id);
-      }
-    },
-    [node.id, hasChildren]
-  );
-
-  // ─── Expand/Collapse toggle ───────────────────────
-  const handleToggle = useCallback(
-    (e: MouseEvent) => {
-      e.stopPropagation();
-      store.toggleExpanded(node.id);
-    },
-    [node.id]
-  );
-
-  // ─── Drag and drop attributes ─────────────────────
-  const dragProps = {
-    draggable: true,
-    onDragStart: (e: DragEvent) => {
-      e.dataTransfer!.setData("text/plain", node.id);
-      e.dataTransfer!.effectAllowed = "move";
-    },
-    onDragOver: (e: DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer!.dropEffect = "move";
-    },
-    onDrop: (e: DragEvent) => {
-      e.preventDefault();
-      const draggedId = e.dataTransfer!.getData("text/plain");
-      if (draggedId && draggedId !== node.id) {
-        // Drop as child of this node
-        store.moveNode(draggedId, node.id, 0);
-      }
-    },
-  };
-
-  return html`
-    <li
-      ref=${liRef}
-      class="outline-node ${isFocused ? "focused" : ""}"
-      role="treeitem"
-      aria-expanded=${hasChildren ? node.is_expanded : undefined}
-      ...${dragProps}
-    >
-      <div class="node-row">
-        <!-- Expand/Collapse toggle -->
-        ${hasChildren
-          ? html`
-            <button
-              class="toggle-btn ${node.is_expanded ? "expanded" : "collapsed"}"
-              onClick=${handleToggle}
-              aria-label=${node.is_expanded ? "Collapse" : "Expand"}
-            >
-              ▶
-            </button>
-          `
-          : html`<span class="toggle-spacer" />`
-        }
-
-        <!-- Bullet -->
-        <button
-          class="bullet ${hasChildren ? "has-children" : ""}"
-          onClick=${handleBulletClick}
-          aria-label="Zoom into node"
-        >
-          •
-        </button>
-
-        <!-- Content editor -->
-        <${NodeEditor}
-          nodeId=${node.id}
-          content=${node.content}
-          isFocused=${isFocused}
-          onKeyDown=${handleKeyDown}
-          onChange=${(content: string) => store.updateContent(node.id, content)}
-          onFocus=${() => store.setFocusedNode(node.id)}
-        />
-      </div>
-
-      <!-- Children (recursive) -->
-      ${hasChildren && node.is_expanded && html`
-        <${OutlineTree}
-          nodes=${node.children}
-          focusedNodeId=${focusedNodeId}
-        />
-      `}
-    </li>
-  `;
-}
-```
-
-### 10.6 Inline Node Editor
-
-```typescript
-// src/renderer/components/NodeEditor.ts
-import { useRef, useEffect, useCallback } from "preact/hooks";
-import { html } from "htm/preact";
-
-interface Props {
-  nodeId: string;
-  content: string;
-  isFocused: boolean;
-  onKeyDown: (e: KeyboardEvent) => void;
-  onChange: (content: string) => void;
-  onFocus: () => void;
-}
-
-// Debounce saves to avoid excessive SQLite writes
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let timer: ReturnType<typeof setTimeout>;
-  return ((...args: any[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as T;
-}
-
-export function NodeEditor({
-  nodeId,
-  content,
-  isFocused,
-  onKeyDown,
-  onChange,
-  onFocus,
-}: Props) {
-  const editorRef = useRef<HTMLDivElement>(null);
-
-  // Debounce content saves (300ms)
-  const debouncedSave = useCallback(
-    debounce((text: string) => onChange(text), 300),
-    [onChange]
-  );
-
-  // Auto-focus when this node becomes the focused node
-  useEffect(() => {
-    if (isFocused && editorRef.current) {
-      editorRef.current.focus();
-
-      // Move cursor to end
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  }, [isFocused]);
-
-  const handleInput = useCallback(
-    (e: Event) => {
-      const text = (e.target as HTMLDivElement).textContent || "";
-      debouncedSave(text);
-    },
-    [debouncedSave]
-  );
-
-  return html`
-    <div
-      ref=${editorRef}
-      class="node-editor"
-      contenteditable="true"
-      spellcheck="true"
-      data-node-id=${nodeId}
-      data-placeholder="Type something..."
-      onInput=${handleInput}
-      onKeyDown=${onKeyDown}
-      onFocus=${onFocus}
-      dangerouslySetInnerHTML=${{ __html: content || "" }}
-    />
-  `;
-}
-```
-
-### 10.7 Breadcrumb
-
-```typescript
-// src/renderer/components/Breadcrumb.ts
-import { html } from "htm/preact";
-import type { OutlineNode } from "../../main/rpc/types";
-
-interface Props {
-  ancestors: OutlineNode[];
-  onNavigate: (id: string | null) => void;
-}
-
-export function Breadcrumb({ ancestors, onNavigate }: Props) {
-  return html`
-    <nav class="breadcrumb" aria-label="Navigation">
-      <button class="breadcrumb-item root" onClick=${() => onNavigate(null)}>
-        Home
-      </button>
-      ${ancestors.map(
-        (node, i) => html`
-          <span class="breadcrumb-separator">›</span>
-          <button
-            class="breadcrumb-item ${i === ancestors.length - 1 ? "current" : ""}"
-            onClick=${() => onNavigate(node.id)}
-          >
-            ${node.content || "(empty)"}
-          </button>
-        `
-      )}
-    </nav>
-  `;
-}
-```
-
-### 10.8 Toolbar
-
-```typescript
-// src/renderer/components/Toolbar.ts
-import { useRef, useCallback } from "preact/hooks";
-import { html } from "htm/preact";
-import { store } from "../state/store";
-
-interface Props {
-  searchQuery: string;
-  onSearch: (query: string) => void;
-}
-
-export function Toolbar({ searchQuery, onSearch }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleCreateRoot = useCallback(() => {
-    store.createNode(null, store.getState().zoomedNodeId);
-  }, []);
-
-  const handleSearchKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onSearch("");
-        inputRef.current?.blur();
-      }
-    },
-    [onSearch]
-  );
-
-  return html`
-    <header class="toolbar">
-      <div class="toolbar-left">
-        <h1 class="app-title">Outliner</h1>
-      </div>
-      <div class="toolbar-center">
-        <input
-          ref=${inputRef}
-          class="search-input"
-          type="text"
-          placeholder="Search... (Ctrl+F)"
-          value=${searchQuery}
-          onInput=${(e: Event) => onSearch((e.target as HTMLInputElement).value)}
-          onKeyDown=${handleSearchKeyDown}
-        />
-      </div>
-      <div class="toolbar-right">
-        <button class="btn" onClick=${handleCreateRoot}>+ New Item</button>
-      </div>
-    </header>
-  `;
-}
-```
-
----
-
-## 11. Styles
-
-```css
-/* src/renderer/styles/main.css */
-
-/* ─── Reset & Base ──────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-:root {
-  --bg: #1a1a2e;
-  --bg-secondary: #16213e;
-  --text: #e0e0e0;
-  --text-muted: #888;
-  --accent: #4fc3f7;
-  --accent-hover: #81d4fa;
-  --border: #2a2a4a;
-  --bullet: #4fc3f7;
-  --bullet-parent: #fff;
-  --focus-bg: rgba(79, 195, 247, 0.08);
-  --font-mono: 'SF Mono', 'Fira Code', monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-body {
-  font-family: var(--font-sans);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.6;
-  overflow: hidden;
-  height: 100vh;
-}
-
-#app {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ─── Toolbar ───────────────────────────────────────── */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag; /* Electrobun: make titlebar draggable */
-}
-
-.toolbar * {
-  -webkit-app-region: no-drag;
-}
-
-.app-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.search-input {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 12px;
-  border-radius: 6px;
-  width: 300px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-input:focus {
-  border-color: var(--accent);
-}
-
-.btn {
-  background: var(--accent);
-  color: #000;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn:hover {
-  background: var(--accent-hover);
-}
-
-/* ─── Breadcrumb ────────────────────────────────────── */
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-
-.breadcrumb-item {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.breadcrumb-item:hover {
-  background: var(--focus-bg);
-  color: var(--accent);
-}
-
-.breadcrumb-item.current {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.breadcrumb-separator {
-  color: var(--text-muted);
-}
-
-/* ─── Outline Tree ──────────────────────────────────── */
-.outline-tree {
-  list-style: none;
-  padding-left: 24px;
-  flex: 1;
-  overflow-y: auto;
-  padding-top: 8px;
-  padding-bottom: 100px;
-}
-
-.outline-tree:first-child {
-  padding-left: 32px;
-}
-
-.outline-node {
-  position: relative;
-}
-
-.node-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  min-height: 28px;
-  transition: background 0.15s;
-}
-
-.node-row:hover {
-  background: var(--focus-bg);
-}
-
-.outline-node.focused > .node-row {
-  background: var(--focus-bg);
-}
-
-/* ─── Toggle Button ─────────────────────────────────── */
-.toggle-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  width: 20px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  transition: transform 0.15s;
-  flex-shrink: 0;
-}
-
-.toggle-btn.expanded {
-  transform: rotate(90deg);
-}
-
-.toggle-btn:hover {
-  color: var(--text);
-}
-
-.toggle-spacer {
-  width: 20px;
-  flex-shrink: 0;
-}
-
-/* ─── Bullet ────────────────────────────────────────── */
-.bullet {
-  background: none;
-  border: none;
-  color: var(--bullet);
-  cursor: pointer;
-  width: 20px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  border-radius: 50%;
-}
-
-.bullet.has-children {
-  color: var(--bullet-parent);
-}
-
-.bullet:hover {
-  background: var(--focus-bg);
-}
-
-/* ─── Node Editor ───────────────────────────────────── */
-.node-editor {
-  flex: 1;
-  outline: none;
-  padding: 2px 4px;
-  min-height: 24px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.node-editor:empty::before {
-  content: attr(data-placeholder);
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-/* ─── Search Results ────────────────────────────────── */
-.search-results {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.search-result {
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-bottom: 4px;
-}
-
-.search-result:hover {
-  background: var(--focus-bg);
-}
-
-/* ─── Loading & Empty ───────────────────────────────── */
-.loading,
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: var(--text-muted);
-}
-
-.empty-state kbd {
-  background: var(--bg-secondary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-
-/* ─── Drag and Drop ─────────────────────────────────── */
-.outline-node[draggable="true"] {
-  cursor: grab;
-}
-
-.outline-node[draggable="true"]:active {
-  cursor: grabbing;
-  opacity: 0.5;
-}
-```
-
----
-
-## 12. Keyboard Shortcuts Reference
-
-| Shortcut | Action |
-|---|---|
-| `Enter` | Create new sibling after current node |
-| `Tab` | Indent (make child of previous sibling) |
-| `Shift + Tab` | Outdent (make sibling of parent) |
-| `Backspace` (on empty) | Delete current node |
-| `Alt + ↑` | Move node up among siblings |
-| `Alt + ↓` | Move node down among siblings |
-| Click bullet `•` | Zoom into node (make it the root view) |
-| Breadcrumb click | Navigate to ancestor / home |
-| `Ctrl/Cmd + F` | Focus search bar |
-| `Escape` | Clear search / exit zoom |
-
----
-
-## 13. Data Flow Summary
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        USER ACTION                               │
-│                   (keystroke, click, drag)                       │
-└──────────────┬───────────────────────────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────┐
-│   Component (OutlineNode)│  ← handles event
-│   calls Store action     │
-└──────────────┬───────────┘
-               │
-               ▼
-┌──────────────────────────┐
-│   Store (state/store.ts) │  ← calls API
-│   api.someMethod(params) │
-└──────────────┬───────────┘
-               │
-               ▼  (Electrobun RPC)
-┌──────────────────────────┐
-│   RPC Handler            │  ← main process
-│   (rpc/handlers.ts)      │
-└──────────────┬───────────┘
-               │
-               ▼
-┌──────────────────────────┐
-│   OutlineService         │  ← business logic
-│   (services/)            │
-└──────────────┬───────────┘
-               │
-               ▼
-┌──────────────────────────┐
-│   NodeRepository         │  ← data access
-│   (repository/)          │
-└──────────────┬───────────┘
-               │
-               ▼
-┌──────────────────────────┐
-│   SQLite (bun:sqlite)    │  ← persistent storage
-│   outliner.db            │
-└──────────────────────────┘
-```
-
----
-
-## Key Design Decisions
-
-### Why SQLite via <code>bun:sqlite</code>
-
-- **Zero-dependency**: `bun:sqlite` is built into Bun, no native modules needed
-- **WAL mode**: Enables concurrent reads while writing, perfect for an interactive app
-- **Prepared statements**: Cached and reused for maximum performance
-- **FTS5**: Native full-text search without external dependencies
-- **Transactions**: Atomic tree operations (move, indent, delete subtree)
-- **Single file**: Easy backup, portable, no server needed
-
-### Why adjacency list + position instead of nested sets or materialized paths? 
-
-- **Simplest model** for an outliner where most operations are local (indent, outdent, move within siblings)
-- **`parent_id` + `position`** gives O(1) lookups for children and O(n) reordering for siblings
-- Recursive CTEs in SQLite handle subtree queries efficiently
-- Nested sets would require expensive rebalancing on every insert/move
-
-### Why soft delete?
-
-- Enables future **undo/redo** by simply toggling `is_deleted`
-- Enables a **trash/recently deleted** feature
-- Data recovery is trivial
-- Periodic hard-delete cleanup can run in background
-
-### Why Preact + HTM instead of React/Vue?
-
-- **3KB** runtime vs 40KB+ for React — fast startup in Electrobun's webview
-- **HTM** = tagged template literals, no JSX build step needed
-- Same hooks API as React (`useState`, `useEffect`, `useCallback`, `useRef`)
-- Electrobun's renderer is a real browser view; lightweight frameworks perform best
-
----
-
-This framework gives you a **fully structured, production-ready foundation**. 
-
----
-
-Round 2: Do you know the plugin system design of Obsidian.md? it divide all plugins into built-in and third-party plugins and even many core functionalities of Obsidian is implemented by its built-in plugins so that you can choose to close them if you don't need them so that you can improve the start-up or load time of your app. Can you also design a similar plugin system for our outliner app here?
-
----
-
 # Plugin System Design for Electrobun Outliner
 
 ## Design Philosophy
@@ -2275,11 +47,54 @@ Inspired by Obsidian.md, our plugin system treats **almost every feature as a pl
 
 ---
 
+## App Skeletons: Configurable, Slimmable Bundles
+
+Instead of an all-in-one bundled app, the outliner uses **skeletons** — named configurations that define which built-in plugins are included and enabled. You can ship different app variants (minimal vs full) or let users pick a profile at runtime.
+
+### Skeleton Levels
+
+| Skeleton      | Purpose                              | Built-ins Included                                      | Use Case                    |
+|---------------|--------------------------------------|---------------------------------------------------------|-----------------------------|
+| `minimal`     | Smallest viable outliner             | core-node-ops, core-tree-view, core-editor, core-theme, core-settings | Fast startup, embedded, CLI |
+| `standard`    | Default daily-use experience         | Above + keyboard, toolbar, search, undo-redo           | Most users                  |
+| `full`        | All built-in features                | Above + FTS, drag-drop, breadcrumb, zoom, context-menu  | Power users                 |
+| `custom`      | User-defined profile                 | User selects from available built-ins                   | Per-user tuning             |
+
+### Build-Time vs Runtime
+
+- **Build-time**: `SKELETON=minimal bun run build` excludes unused plugins from the bundle. Smaller binary, faster cold start.
+- **Runtime**: Users can switch profiles in Settings. Disabling a plugin unloads it; re-enabling loads it. No rebuild needed.
+
+### Skeleton Configuration Flow
+
+```
+┌─────────────────────────┐     ┌─────────────────────────┐
+│  skeletons.config.ts    │     │  electrobun.config.ts  │
+│  Defines:               │     │  build.plugins:         │
+│  • Available skeletons  │     │  • Include list (from   │
+│  • Plugin → skeleton map │     │    skeleton) OR         │
+│  • Default skeleton     │     │  • "all" for dev        │
+└───────────┬─────────────┘     └────────────┬────────────┘
+            │                                 │
+            └──────────────┬──────────────────┘
+                           ▼
+            ┌──────────────────────────────┐
+            │  Plugin Registry Loader      │
+            │  • Only imports plugins in   │
+            │    current skeleton          │
+            │  • Tree-shaking removes      │
+            │    excluded plugins          │
+            └──────────────────────────────┘
+```
+
+---
+
 ## Updated Project Structure
 
 ```
 electrobun-outliner/
 ├── electrobun.config.ts
+├── skeletons.config.ts              # Skeleton definitions + plugin → skeleton map
 ├── package.json
 ├── src/
 │   ├── main/                              # Bun process
@@ -2298,6 +113,8 @@ electrobun-outliner/
 │   │   ├── rpc/
 │   │   │   ├── rpc-registry.ts           # Dynamic RPC handler registration
 │   │   │   └── types.ts
+│   │   ├── skeletons/
+│   │   │   └── loadPlugins.ts            # Skeleton-aware plugin loader (main)
 │   │   └── plugins/                       # Built-in plugins (main-side)
 │   │       ├── core-node-ops/
 │   │       │   ├── manifest.ts
@@ -2326,6 +143,8 @@ electrobun-outliner/
 │       │   ├── UISlotRegistry.ts         # Named UI slots for injection
 │       │   ├── CommandPalette.ts         # Plugin-registered commands
 │       │   └── SettingsRegistry.ts       # Plugin settings panels
+│       ├── skeletons/
+│       │   └── loadPlugins.ts            # Skeleton-aware plugin loader (renderer)
 │       ├── shell/
 │       │   ├── AppShell.ts               # Minimal frame with slots
 │       │   └── PluginSettingsView.ts     # Enable/disable UI
@@ -2373,6 +192,154 @@ electrobun-outliner/
 │
 └── data/
     └── outliner.db
+```
+
+---
+
+## 0. Skeletons Configuration & Plugin Loading
+
+### 0.1 Skeletons Config
+
+```typescript
+// skeletons.config.ts
+
+export type SkeletonId = "minimal" | "standard" | "full";
+
+const MINIMAL_PLUGINS = [
+  "core-node-ops", "core-tree-view", "core-editor", "core-theme", "core-settings",
+];
+
+export const SKELETONS: Record<SkeletonId, string[]> = {
+  minimal: [...MINIMAL_PLUGINS],
+  standard: [
+    ...MINIMAL_PLUGINS,
+    "core-keyboard", "core-toolbar", "core-search", "core-undo-redo",
+  ],
+  full: [
+    ...MINIMAL_PLUGINS,
+    "core-keyboard", "core-toolbar", "core-search", "core-undo-redo",
+    "core-fts-search", "core-drag-drop", "core-breadcrumb", "core-zoom", "core-context-menu",
+  ],
+};
+
+export const DEFAULT_SKELETON: SkeletonId = "standard";
+
+export function getPluginsForSkeleton(skeleton: SkeletonId): string[] {
+  return [...SKELETONS[skeleton]];
+}
+
+/** For build: which skeleton to bundle. Set via SKELETON env at build time. */
+export function getBuildSkeleton(): SkeletonId {
+  const env = (typeof process !== "undefined" ? process.env?.SKELETON : undefined) as SkeletonId | undefined;
+  if (env && SKELETONS[env]) return env;
+  return DEFAULT_SKELETON;
+}
+```
+
+### 0.2 Main Process Plugin Loader
+
+```typescript
+// src/main/skeletons/loadPlugins.ts
+
+import type { MainPlugin } from "../plugin-system/PluginManifest";
+import { getPluginsForSkeleton, getBuildSkeleton } from "../../../skeletons.config";
+
+const MAIN_PLUGIN_IDS = [
+  "core-node-ops", "core-fts-search", "core-undo-redo", "core-settings",
+] as const;
+
+/** Dynamically load only the main-process plugins in the current skeleton. */
+export async function loadMainPlugins(): Promise<MainPlugin[]> {
+  const skeleton = getBuildSkeleton();
+  const ids = new Set(getPluginsForSkeleton(skeleton));
+
+  const plugins: MainPlugin[] = [];
+
+  for (const id of MAIN_PLUGIN_IDS) {
+    if (!ids.has(id)) continue;
+
+    const mod = await import(`../plugins/${id}/index`);
+    if (mod?.default?.manifest) {
+      plugins.push(mod.default);
+    }
+  }
+
+  return plugins;
+}
+```
+
+### 0.3 Renderer Process Plugin Loader
+
+```typescript
+// src/renderer/skeletons/loadPlugins.ts
+
+import type { RendererPlugin } from "../../main/plugin-system/PluginManifest";
+import { getPluginsForSkeleton, getBuildSkeleton } from "../../../skeletons.config";
+
+const RENDERER_PLUGIN_IDS = [
+  "core-tree-view", "core-editor", "core-keyboard", "core-search",
+  "core-breadcrumb", "core-zoom", "core-drag-drop", "core-toolbar",
+  "core-theme", "core-context-menu",
+] as const;
+
+/** Dynamically load only the renderer plugins in the current skeleton. */
+export async function loadRendererPlugins(): Promise<RendererPlugin[]> {
+  const skeleton = getBuildSkeleton();
+  const ids = new Set(getPluginsForSkeleton(skeleton));
+
+  const plugins: RendererPlugin[] = [];
+
+  for (const id of RENDERER_PLUGIN_IDS) {
+    if (!ids.has(id)) continue;
+
+    const mod = await import(`../plugins/${id}/index`);
+    if (mod?.default?.manifest) {
+      plugins.push(mod.default);
+    }
+  }
+
+  return plugins;
+}
+```
+
+### 0.4 Build-Time Tree-Shaking (Optional)
+
+Dynamic `import(\`../plugins/${id}/index\`)` may pull all plugins into the bundle. For the smallest builds, add a build script that generates a skeleton-specific loader:
+
+```bash
+# package.json
+"scripts": {
+  "build:minimal": "SKELETON=minimal bun run build",
+  "build:standard": "SKELETON=standard bun run build",
+  "build:full": "SKELETON=full bun run build"
+}
+```
+
+A codegen step can emit `loadPlugins.generated.ts` with static imports only for the chosen skeleton, so the bundler tree-shakes unused plugins.
+
+### 0.5 Electrobun Build Config (Skeleton Support)
+
+```typescript
+// electrobun.config.ts
+import type { ElectrobunConfig } from "electrobun";
+import { getBuildSkeleton } from "./skeletons.config";
+
+const skeleton = getBuildSkeleton();
+
+const config: ElectrobunConfig = {
+  name: "Outliner",
+  identifier: "sh.blackboard.outliner",
+  version: "0.1.0",
+  main: "./src/main/index.ts",
+  renderer: { index: "./src/renderer/index.html" },
+  build: {
+    target: "bun",
+    /** Exclude plugins not in skeleton from bundle (via env / tree-shaking). */
+    env: { SKELETON: skeleton },
+  },
+};
+
+export default config;
 ```
 
 ---
@@ -4350,17 +2317,12 @@ const db = getDatabase();
 const appDataDir = process.env.ELECTROBUN_APP_DATA || "./data";
 const pluginManager = new PluginManager(db, appDataDir);
 
-// ─── Register Built-in Plugins ──────────────────────────
-// These are imported statically — they ship with the app
-import coreNodeOps from "./plugins/core-node-ops/index";
-import coreFtsSearch from "./plugins/core-fts-search/index";
-import coreUndoRedo from "./plugins/core-undo-redo/index";
-import coreSettings from "./plugins/core-settings/index";
-
-pluginManager.register(coreNodeOps);
-pluginManager.register(coreFtsSearch);
-pluginManager.register(coreUndoRedo);
-pluginManager.register(coreSettings);
+// ─── Register Built-in Plugins (Skeleton-Aware) ─────────
+// Only plugins in the current skeleton are loaded; others are tree-shaken or skipped
+const { loadMainPlugins } = await import("./skeletons/loadPlugins");
+for (const plugin of await loadMainPlugins()) {
+  pluginManager.register(plugin);
+}
 
 // ─── Discover Community Plugins ─────────────────────────
 const communityPluginsDir = path.join(appDataDir, "plugins");
@@ -4390,7 +2352,7 @@ rpc.handle("__rpc__", async (payload: { method: string; params?: any }) => {
 });
 
 // Plugin management RPC (always available)
-rpc.handle("__plugins__", async (payload: { action: string; pluginId?: string }) => {
+rpc.handle("__plugins__", async (payload: { action: string; pluginId?: string; skeleton?: string }) => {
   switch (payload.action) {
     case "list":
       return { success: true, data: pluginManager.getPluginList() };
@@ -4398,6 +2360,27 @@ rpc.handle("__plugins__", async (payload: { action: string; pluginId?: string })
       return { success: await pluginManager.enablePlugin(payload.pluginId!) };
     case "disable":
       return { success: await pluginManager.disablePlugin(payload.pluginId!) };
+    case "applySkeleton": {
+      // Batch enable plugins in skeleton, disable others (runtime profile switching)
+      const { getPluginsForSkeleton } = await import("../../skeletons.config");
+      const ids = new Set(getPluginsForSkeleton(payload.skeleton as any));
+      const list = pluginManager.getPluginList();
+      // Disable first (all non-essential not in skeleton)
+      for (const p of list) {
+        if (p.essential || ids.has(p.id)) continue;
+        await pluginManager.disablePlugin(p.id);
+      }
+      // Enable in skeleton (multi-pass until stable; respects dependency order)
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const p of list) {
+          if (!ids.has(p.id) || p.enabled) continue;
+          if (await pluginManager.enablePlugin(p.id)) changed = true;
+        }
+      }
+      return { success: true };
+    }
     default:
       return { success: false, error: "Unknown plugin action" };
   }
@@ -4436,28 +2419,11 @@ import { AppShell } from "./shell/AppShell";
 // ─── Initialize Renderer Plugin Manager ─────────────────
 const pluginManager = new RendererPluginManager(rpc);
 
-// ─── Register Built-in Renderer Plugins ─────────────────
-import coreTreeView from "./plugins/core-tree-view/index";
-import coreEditor from "./plugins/core-editor/index";
-import coreKeyboard from "./plugins/core-keyboard/index";
-import coreSearch from "./plugins/core-search/index";
-import coreBreadcrumb from "./plugins/core-breadcrumb/index";
-import coreZoom from "./plugins/core-zoom/index";
-import coreDragDrop from "./plugins/core-drag-drop/index";
-import coreToolbar from "./plugins/core-toolbar/index";
-import coreTheme from "./plugins/core-theme/index";
-import coreContextMenu from "./plugins/core-context-menu/index";
-
-pluginManager.register(coreTreeView);
-pluginManager.register(coreEditor);
-pluginManager.register(coreKeyboard);
-pluginManager.register(coreSearch);
-pluginManager.register(coreBreadcrumb);
-pluginManager.register(coreZoom);
-pluginManager.register(coreDragDrop);
-pluginManager.register(coreToolbar);
-pluginManager.register(coreTheme);
-pluginManager.register(coreContextMenu);
+// ─── Register Built-in Renderer Plugins (Skeleton-Aware) ─
+const { loadRendererPlugins } = await import("./skeletons/loadPlugins");
+for (const plugin of await loadRendererPlugins()) {
+  pluginManager.register(plugin);
+}
 
 // ─── Load Enabled Plugins ───────────────────────────────
 await pluginManager.loadFromMainProcess();
@@ -4614,10 +2580,27 @@ export function PluginSettingsView() {
     </div>
   `;
 
+  const applySkeleton = async (skeleton: string) => {
+    const result = await rpc.invoke("__plugins__", { action: "applySkeleton", skeleton });
+    if (result.success) {
+      loadPlugins();
+      window.location.reload(); // Reload to re-init renderer plugins
+    }
+  };
+
   return html`
     <div class="plugin-settings">
       <h2>Plugins</h2>
-      <p class="subtitle">Enable or disable features. Core plugins ship with the app. Community plugins are installed separately.</p>
+      <p class="subtitle">Enable or disable features. Use a profile to quickly switch between minimal, standard, or full.</p>
+
+      <div class="skeleton-selector">
+        <label>Profile:</label>
+        <select onChange=${(e: Event) => applySkeleton((e.target as HTMLSelectElement).value)}>
+          <option value="minimal">Minimal (tree + edit only)</option>
+          <option value="standard">Standard (daily use)</option>
+          <option value="full">Full (all features)</option>
+        </select>
+      </div>
 
       <div class="filter-tabs">
         <button class=${filter === "all" ? "active" : ""} onClick=${() => setFilter("all")}>

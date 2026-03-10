@@ -8,8 +8,21 @@ let db: Database | null = null;
 export function getDatabase(): Database {
   if (db) return db;
 
-  // Use Electrobun's app-specific user data directory (e.g. %APPDATA%/sh.blackboard.outliner/dev)
-  const dataDir = Electrobun.Utils.paths.userData;
+  // Prefer project ./data/ when it exists (dev) or ELECTROBUN_APP_DATA env
+  const appDataEnv = process.env.ELECTROBUN_APP_DATA;
+  const projectDataDir = path.join(process.cwd(), "data");
+  const projectDbPath = path.join(projectDataDir, "outliner.db");
+
+  let dataDir: string;
+  if (appDataEnv) {
+    dataDir = appDataEnv;
+  } else if (existsSync(projectDbPath)) {
+    // Use existing DB in project data folder
+    dataDir = projectDataDir;
+  } else {
+    dataDir = Electrobun.Utils.paths.userData;
+  }
+
   const dbPath = path.join(dataDir, "outliner.db");
 
   if (!existsSync(dataDir)) {
@@ -17,6 +30,7 @@ export function getDatabase(): Database {
   }
 
   db = new Database(dbPath, { create: true });
+  console.log("[Outliner] Database:", dbPath);
 
   db.run("PRAGMA journal_mode = WAL");
   db.run("PRAGMA foreign_keys = ON");

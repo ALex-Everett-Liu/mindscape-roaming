@@ -1,6 +1,7 @@
 import { html } from "htm/preact";
 import type { OutlineTreeNode } from "../../shared/types";
 import { OutlineNode } from "./OutlineNode";
+import { store } from "../state/store";
 
 interface Props {
   nodes: OutlineTreeNode[];
@@ -10,8 +11,17 @@ interface Props {
 export function OutlineTree({ nodes, focusedNodeId }: Props) {
   if (nodes.length === 0) {
     return html`
-      <div class="empty-state">
-        <p>No items yet. Press <kbd>Enter</kbd> to create one.</p>
+      <div
+        class="empty-state"
+        tabIndex=${0}
+        onKeyDown=${(e: KeyboardEvent) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            store.createNode(null, store.getState().zoomedNodeId);
+          }
+        }}
+      >
+        <p>No items yet. Press <kbd>Enter</kbd> or click "+ New Item" to create one.</p>
       </div>
     `;
   }

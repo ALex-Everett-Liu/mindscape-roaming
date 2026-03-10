@@ -49,23 +49,25 @@ bun run build
 
 ```
 src/
-├── main/           # Bun main process (backend)
-│   ├── database/   # SQLite connection, migrations, seed
-│   ├── repository/ # Data access layer
-│   ├── services/   # Business logic
-│   └── rpc/        # RPC types
-├── renderer/       # BrowserView frontend (Preact + HTM)
-│   ├── components/ # UI components
-│   ├── state/      # Client state store
-│   ├── rpc/        # RPC client
-│   └── styles/     # CSS
-└── shared/         # Types shared between main and renderer
+├── main/                    # Bun main process (backend)
+│   ├── plugin-system/      # PluginManager, EventBus, RPC registry
+│   ├── plugins/            # Built-in plugins (core-node-ops, core-fts-search, core-settings)
+│   ├── skeletons/          # Skeleton-aware plugin loader
+│   ├── database/           # SQLite connection
+│   └── rpc/                # RPC types
+├── renderer/               # BrowserView frontend (Preact + HTM)
+│   ├── components/         # UI components
+│   ├── state/              # Client state store
+│   ├── rpc/                # RPC client
+│   └── styles/             # CSS
+└── shared/                 # Types shared between main and renderer
 ```
 
 ## Architecture
 
 The app follows the design from `architecture-framework-design.md`:
 
-- **Main process** (Bun): SQLite database, migrations, repository, business logic, RPC handlers
-- **Renderer** (BrowserView): Preact UI, local state, RPC client to main process
-- **RPC bridge**: Electrobun RPC for type-safe communication between processes
+- **Plugin system**: Core features (node ops, FTS search) are implemented as plugins. The app shell is minimal.
+- **Skeletons**: `skeletons.config.ts` defines profiles (minimal, standard, full). Use `SKELETON=minimal bun run build` for a slimmer build.
+- **Main process**: PluginManager loads plugins in dependency order; RPC handlers are registered by plugins.
+- **Renderer**: Preact UI, local state, RPC client to main process.

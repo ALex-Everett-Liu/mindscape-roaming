@@ -4,9 +4,11 @@ import { store, type AppState } from "../state/store";
 import { Toolbar } from "./Toolbar";
 import { Breadcrumb } from "./Breadcrumb";
 import { OutlineTree } from "./OutlineTree";
+import { PluginSettingsView } from "./PluginSettingsView";
 
 export function App() {
   const [state, setState] = useState<AppState>(store.getState());
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     return store.subscribe(setState);
@@ -21,6 +23,7 @@ export function App() {
       <${Toolbar}
         searchQuery=${state.searchQuery}
         onSearch=${(q: string) => store.search(q)}
+        onOpenSettings=${() => setShowSettings(true)}
       />
 
       ${state.breadcrumbs.length > 0 &&
@@ -57,6 +60,9 @@ export function App() {
               focusedNodeId=${state.focusedNodeId}
             />
           `}
+
+      ${showSettings &&
+      html`<${PluginSettingsView} onClose=${() => setShowSettings(false)} />`}
     </div>
   `;
 }

@@ -5,9 +5,10 @@ import { store } from "../state/store";
 interface Props {
   searchQuery: string;
   onSearch: (query: string) => void;
+  onOpenSettings?: () => void;
 }
 
-export function Toolbar({ searchQuery, onSearch }: Props) {
+export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleCreateRoot = useCallback(() => {
@@ -41,6 +42,17 @@ export function Toolbar({ searchQuery, onSearch }: Props) {
         />
       </div>
       <div class="toolbar-right">
+        ${onOpenSettings &&
+        html`
+          <button
+            class="btn btn-icon"
+            onClick=${onOpenSettings}
+            title="Plugin settings"
+            aria-label="Settings"
+          >
+            ⚙
+          </button>
+        `}
         <button class="btn" onClick=${handleCreateRoot}>+ New Item</button>
       </div>
     </header>

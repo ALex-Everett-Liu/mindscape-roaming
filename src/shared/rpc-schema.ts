@@ -61,6 +61,18 @@ export type OutlinerRPCType = {
         params: DeleteNodeParams;
         response: RpcResult<void>;
       };
+      listPlugins: {
+        params: Record<string, never>;
+        response: RpcResult<import("./types").PluginInfo[]>;
+      };
+      enablePlugin: {
+        params: { pluginId: string };
+        response: RpcResult<boolean>;
+      };
+      disablePlugin: {
+        params: { pluginId: string };
+        response: RpcResult<boolean>;
+      };
     };
   };
   webview: {

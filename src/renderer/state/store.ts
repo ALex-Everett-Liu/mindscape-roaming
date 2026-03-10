@@ -77,6 +77,7 @@ class Store {
       }
     } catch (err) {
       console.error("Failed to load tree:", err);
+      this.update({ tree: [], loading: false });
     } finally {
       this.update({ loading: false });
     }
@@ -93,6 +94,7 @@ class Store {
       this.update({ focusedNodeId: result.data!.id });
       return result.data!;
     }
+    console.error("createNode failed:", result.error);
     return null;
   }
 

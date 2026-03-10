@@ -70,3 +70,16 @@ export interface RpcResult<T> {
   data?: T;
   error?: string;
 }
+
+// ─── Plugin (for Settings UI) ────────────────────────
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  type: "core" | "community";
+  essential?: boolean;
+  enabled: boolean;
+  loaded: boolean;
+}

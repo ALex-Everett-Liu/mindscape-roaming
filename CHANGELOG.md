@@ -7,19 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-03-10
+
+### Added
+
+- **Plugin system**: Main process now uses a plugin architecture (Obsidian-style)
+  - `PluginManager`, `EventBus`, `RpcHandlerRegistry` for plugin lifecycle
+  - Core plugins: `core-node-ops` (CRUD, tree), `core-fts-search` (FTS5), `core-settings`
+- **App skeletons**: `skeletons.config.ts` defines minimal/standard/full profiles
+  - Set `SKELETON=minimal` before build for a slimmer app (fewer plugins bundled)
+  - Each skeleton determines which built-in plugins are loaded
+- **Plugin settings panel**: Enable/disable plugins via gear icon in toolbar
+  - Modal lists all plugins with toggle switches
+  - Essential plugins (e.g. core-node-ops) cannot be disabled
+
+### Fixed
+
+- Database path: prefer `./data/outliner.db` when it exists (dev) or `ELECTROBUN_APP_DATA` env
+- Plugin loading: use static imports instead of dynamic `import()` so bundler includes handlers
+- Data migration: auto-copy from `outliner_nodes` table if `outline_nodes` is empty
+- Enter key now creates first node when tree is empty (empty state is focusable)
+
 ## [0.1.0] - 2025-03-10
 
 ### Added
 
 - Initial release of Mindscape Outliner
-
-### Fixed
-
-- Correct Electrobun import: use default import for `Electrobun`, not named export
-- Use `Electrobun.Utils.quit()` instead of `Electrobun.quit()` on window close
-- Fix database path: use `Electrobun.Utils.paths.userData` for writable app data directory
-- Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
-- Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 - WorkFlowy-like hierarchical outline with nested bullets and unlimited depth
 - SQLite storage with WAL mode for persistent data
 - FTS5 full-text search across all nodes
@@ -37,5 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preact + HTM for the renderer UI
 - RPC bridge for type-safe main/renderer communication
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.0...HEAD
+### Fixed
+
+- Correct Electrobun import: use default import for `Electrobun`, not named export
+- Use `Electrobun.Utils.quit()` instead of `Electrobun.quit()` on window close
+- Fix database path: use `Electrobun.Utils.paths.userData` for writable app data directory
+- Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
+- Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
+
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/releases/tag/v0.1.0
