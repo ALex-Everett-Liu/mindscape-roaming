@@ -92,14 +92,8 @@ export function runMigrations(db: Database): void {
     console.log(`Running migration ${migration.version}: ${migration.name}`);
 
     db.transaction(() => {
-      const statements = migration.up
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      for (const stmt of statements) {
-        db.run(stmt);
-      }
+      // Run the full migration - don't split by ; as it breaks BEGIN/END blocks (triggers)
+      db.run(migration.up.trim());
 
       db.run(
         "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)",

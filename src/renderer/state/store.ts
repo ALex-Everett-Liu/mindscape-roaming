@@ -51,25 +51,35 @@ class Store {
   async loadTree(): Promise<void> {
     this.update({ loading: true });
 
-    const parentId = this.state.zoomedNodeId;
-    const result = await api.getSubtree({ parent_id: parentId });
+    try {
+      const parentId = this.state.zoomedNodeId;
+      const result = await Promise.race([
+        api.getSubtree({ parent_id: parentId }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Load timeout")), 15000)
+        ),
+      ]);
 
-    if (result.success) {
-      this.update({ tree: result.data! });
+      if (result.success) {
+        this.update({ tree: result.data! });
 
-      if (parentId) {
-        const ancestors = await api.getAncestors(parentId);
-        const zoomedNode = await api.getNode(parentId);
-        if (ancestors.success && zoomedNode.success) {
-          this.update({
-            breadcrumbs: [...ancestors.data!, zoomedNode.data!],
-          });
+        if (parentId) {
+          const ancestors = await api.getAncestors(parentId);
+          const zoomedNode = await api.getNode(parentId);
+          if (ancestors.success && zoomedNode.success) {
+            this.update({
+              breadcrumbs: [...ancestors.data!, zoomedNode.data!],
+            });
+          }
+        } else {
+          this.update({ breadcrumbs: [] });
         }
-      } else {
-        this.update({ breadcrumbs: [] });
       }
+    } catch (err) {
+      console.error("Failed to load tree:", err);
+    } finally {
+      this.update({ loading: false });
     }
-    this.update({ loading: false });
   }
 
   async createNode(afterId: string | null, parentId: string | null): Promise<OutlineNode | null> {

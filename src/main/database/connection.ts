@@ -1,15 +1,20 @@
 import { Database } from "bun:sqlite";
 import path from "path";
+import { mkdirSync, existsSync } from "fs";
+import Electrobun from "electrobun/bun";
 
 let db: Database | null = null;
 
 export function getDatabase(): Database {
   if (db) return db;
 
-  const dbPath = path.join(
-    process.env.ELECTROBUN_APP_DATA ?? "./data",
-    "outliner.db"
-  );
+  // Use Electrobun's app-specific user data directory (e.g. %APPDATA%/sh.blackboard.outliner/dev)
+  const dataDir = Electrobun.Utils.paths.userData;
+  const dbPath = path.join(dataDir, "outliner.db");
+
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
 
   db = new Database(dbPath, { create: true });
 

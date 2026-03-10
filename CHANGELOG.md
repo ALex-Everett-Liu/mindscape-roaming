@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of Mindscape Outliner
+
+### Fixed
+
+- Correct Electrobun import: use default import for `Electrobun`, not named export
+- Use `Electrobun.Utils.quit()` instead of `Electrobun.quit()` on window close
+- Fix database path: use `Electrobun.Utils.paths.userData` for writable app data directory
+- Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
+- Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 - WorkFlowy-like hierarchical outline with nested bullets and unlimited depth
 - SQLite storage with WAL mode for persistent data
 - FTS5 full-text search across all nodes

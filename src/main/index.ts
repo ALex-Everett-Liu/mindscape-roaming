@@ -1,4 +1,4 @@
-import { Electrobun, BrowserWindow, BrowserView } from "electrobun/bun";
+import Electrobun, { BrowserWindow, BrowserView } from "electrobun/bun";
 import { getDatabase, closeDatabase } from "./database/connection";
 import { runMigrations } from "./database/migrations";
 import { seedInitialData } from "./database/seed";
@@ -66,5 +66,5 @@ Electrobun.events.on("will-quit", () => {
 });
 
 mainWindow.on("close", () => {
-  Electrobun.quit();
+  Electrobun.Utils.quit();
 });

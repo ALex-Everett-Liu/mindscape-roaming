@@ -14,10 +14,10 @@ const rpc = Electroview.defineRPC<OutlinerRPCType>({
   },
 });
 const electroview = new Electroview({ rpc });
-initApi(electroview.rpc.request as Parameters<typeof initApi>[0]);
+initApi(electroview.rpc!.request as Parameters<typeof initApi>[0]);
 
-// Initial data load
-store.loadTree();
-
-// Render app
+// Render app immediately (shows empty/loading state)
 render(html`<${App} />`, document.getElementById("app")!);
+
+// Defer data load - give WebSocket time to connect to main process
+setTimeout(() => store.loadTree(), 300);
