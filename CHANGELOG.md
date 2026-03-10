@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.5] - 2026-03-10
+## [0.1.5] - 2025-03-11
 
 ### Added
 
-- **docs/roadmap.md**: Future plans for soft-delete features (undo/redo, trash, hard-delete cleanup) and FTS5 improvements
+- **docs/milestones.md**: Completed features (FTS5 search plugin improvements)
+- **docs/roadmap.md**: Future plans for soft-delete features (undo/redo, trash, hard-delete cleanup)
+- **FTS5 search UI when disabled**: Search input disabled with placeholder when `core-fts-search` plugin is not loaded; `searchAvailable` refreshed on app init and when Settings closes
 
 ### Changed
 
 - **Plugin system**: Removed skeleton concept entirely. All built-in plugins are registered at startup; users enable/disable each in Settings. Moved `loadPlugins.ts` to `plugin-system/`; deleted `skeletons.config.ts` and `skeletons/` folder.
+
+### Fixed
+
+- **FTS5 search returning 0 results**: Rebuild on first enable now uses `outline_nodes_fts_docsize` (token index) instead of FTS row count—external content tables report content rows even when the index is empty. Prefix query with exact-token fallback.
 
 ## [0.1.4] - 2025-03-10
 

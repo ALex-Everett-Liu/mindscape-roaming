@@ -10,6 +10,7 @@ export interface AppState {
   searchQuery: string;
   searchResults: OutlineNode[];
   isSearching: boolean;
+  searchAvailable: boolean;
   loading: boolean;
   unsavedCount: number;
   saveInProgress: boolean;
@@ -29,6 +30,7 @@ class Store {
     searchQuery: "",
     searchResults: [],
     isSearching: false,
+    searchAvailable: false,
     loading: true,
     unsavedCount: 0,
     saveInProgress: false,
@@ -247,6 +249,18 @@ class Store {
     const result = await api.search({ query, limit: 50 });
     if (result.success) {
       this.update({ searchResults: result.data!, isSearching: false });
+    } else {
+      this.update({ searchResults: [], isSearching: false });
+    }
+  }
+
+  async refreshSearchAvailability(): Promise<void> {
+    const res = await api.listPlugins();
+    if (res.success && res.data) {
+      const available = res.data.some(
+        (p) => p.id === "core-fts-search" && p.loaded
+      );
+      this.update({ searchAvailable: available });
     }
   }
 

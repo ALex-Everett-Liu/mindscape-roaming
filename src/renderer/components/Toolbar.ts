@@ -4,11 +4,12 @@ import { store } from "../state/store";
 
 interface Props {
   searchQuery: string;
+  searchAvailable: boolean;
   onSearch: (query: string) => void;
   onOpenSettings?: () => void;
 }
 
-export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
+export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState(store.getState());
 
@@ -53,15 +54,27 @@ export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
         <h1 class="app-title">Outliner</h1>
       </div>
       <div class="toolbar-center">
-        <input
-          ref=${inputRef}
-          class="search-input"
-          type="text"
-          placeholder="Search... (Ctrl+F)"
-          value=${searchQuery}
-          onInput=${(e: Event) => onSearch((e.target as HTMLInputElement).value)}
-          onKeyDown=${handleSearchKeyDown}
-        />
+        ${searchAvailable
+          ? html`
+              <input
+                ref=${inputRef}
+                class="search-input"
+                type="text"
+                placeholder="Search... (Ctrl+F)"
+                value=${searchQuery}
+                onInput=${(e: Event) => onSearch((e.target as HTMLInputElement).value)}
+                onKeyDown=${handleSearchKeyDown}
+              />
+            `
+          : html`
+              <input
+                class="search-input search-input-disabled"
+                type="text"
+                placeholder="Search (enable Core: Full-Text Search in Settings)"
+                disabled
+                title="Enable Core: Full-Text Search in Settings"
+              />
+            `}
       </div>
       <div class="toolbar-right">
         ${hasUnsaved &&

@@ -35,6 +35,7 @@ export function App() {
     <div class="app">
       <${Toolbar}
         searchQuery=${state.searchQuery}
+        searchAvailable=${state.searchAvailable}
         onSearch=${(q: string) => store.search(q)}
         onOpenSettings=${() => setShowSettings(true)}
       />
@@ -75,7 +76,12 @@ export function App() {
           `}
 
       ${showSettings &&
-      html`<${PluginSettingsView} onClose=${() => setShowSettings(false)} />`}
+      html`<${PluginSettingsView}
+        onClose=${() => {
+          setShowSettings(false);
+          store.refreshSearchAvailability();
+        }}
+      />`}
     </div>
   `;
 }

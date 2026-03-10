@@ -21,4 +21,7 @@ initApi(electroview.rpc!.request as Parameters<typeof initApi>[0]);
 render(html`<${App} />`, document.getElementById("app")!);
 
 // Defer data load - give WebSocket time to connect to main process
-setTimeout(() => store.loadTree(), 300);
+setTimeout(async () => {
+  await store.loadTree();
+  await store.refreshSearchAvailability();
+}, 300);

@@ -1,4 +1,4 @@
-# Save Mechanism Improvement Roadmap
+## Save Mechanism Improvement Roadmap
 
 This roadmap outlines the future plan for improving the backup-on-edit save mechanism in Mindscape Outliner, based on the [expert review](An%20expert%20review%20to%20SAVE_MECHANISM_SPEC.md) of the [SAVE_MECHANISM_SPEC](SAVE_MECHANISM_SPEC.md). The current design relies on filesystem copying and has known edge-case failure modes; these improvements aim to achieve word-processor-level reliability for a document-based desktop app.
 
@@ -195,19 +195,9 @@ The database already supports soft delete (`is_deleted` on `outline_nodes`). Del
 
 ---
 
-## Future: FTS5 Search Plugin Improvements
-
-FTS5 full-text search is implemented in the `core-fts-search` plugin (creates `outline_nodes_fts`, triggers, `search` RPC). All built-in plugins are in Settings; users enable/disable each. Remaining gaps:
-
-| Issue | Current state | Future plan |
-|-------|---------------|-------------|
-| **UI when disabled** | Search input always visible; calls fail with "Handler not registered" when plugin disabled | Conditionally show or disable search UI when `core-fts-search` is not loaded |
-| **Rebuild on first enable** | Enabling plugin on DB with existing nodes may leave FTS table out of sync | On plugin load, if FTS table empty but `outline_nodes` has rows, run `INSERT INTO outline_nodes_fts(outline_nodes_fts) VALUES('rebuild')` |
-
----
-
 ## References
 
+- [milestones.md](milestones.md) — Completed features (e.g. FTS5 search plugin)
 - [SAVE_MECHANISM_SPEC](SAVE_MECHANISM_SPEC.md) — Current technical specification
 - [An expert review to SAVE_MECHANISM_SPEC](An%20expert%20review%20to%20SAVE_MECHANISM_SPEC.md) — Source of improvements
 - [architecture.md](architecture.md) — Project architecture
