@@ -1,23 +1,6 @@
 import type { OutlineTreeNode, OutlineNode } from "../../shared/types";
 import { api } from "../rpc/api";
 import { saveStateManager } from "./saveStateManager";
-import {
-  addNodeToTree,
-  createTreeNode,
-  cloneTree,
-  moveNodeInTree,
-  removeNodeFromTree,
-} from "./treeUtils";
-
-export interface UnsavedNodeChange {
-  content?: { current: string; original: string };
-  is_expanded?: { current: boolean; original: boolean };
-}
-
-export type StructuralChange =
-  | { type: "create"; id: string; content: string; parent_id: string | null; insertAfterId: string | null }
-  | { type: "move"; id: string; new_parent_id: string | null; new_position: number }
-  | { type: "delete"; id: string; deleteChildren: boolean };
 
 export interface AppState {
   tree: OutlineTreeNode[];
@@ -37,10 +20,6 @@ export interface AppState {
 
 type Listener = (state: AppState) => void;
 
-function randomId(): string {
-  return crypto.randomUUID();
-}
-
 class Store {
   private state: AppState = {
     tree: [],
@@ -58,15 +37,13 @@ class Store {
     lastSaveSuccess: null,
   };
 
-  private unsavedChanges = new Map<string, UnsavedNodeChange>();
-  private structuralChanges: StructuralChange[] = [];
-  private baselineTree: OutlineTreeNode[] = [];
+  private modifiedNodeIds = new Set<string>();
   private listeners = new Set<Listener>();
   private loadVersion = 0;
 
   constructor() {
     saveStateManager.register("outliner", {
-      getChanges: () => this.getCombinedChanges(),
+      getChanges: () => new Map([...this.modifiedNodeIds].map((id) => [id, true])),
       save: () => this.persistChanges(),
       discard: () => this.revertChanges(),
     });
@@ -76,16 +53,9 @@ class Store {
       try {
         api.reportUnsavedState?.(hasUnsaved);
       } catch {
-        /* API not initialized yet (store loads before initApi) */
+        /* API not initialized yet */
       }
     });
-  }
-
-  private getCombinedChanges(): Map<string, unknown> {
-    const m = new Map<string, unknown>();
-    for (const [k, v] of this.unsavedChanges) m.set(k, v);
-    this.structuralChanges.forEach((_, i) => m.set(`__struct:${i}`, true));
-    return m;
   }
 
   getState(): AppState {
@@ -109,24 +79,24 @@ class Store {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.unsavedChanges.size > 0 || this.structuralChanges.length > 0;
+    return this.modifiedNodeIds.size > 0;
   }
 
   getUnsavedCount(): number {
-    return this.unsavedChanges.size + this.structuralChanges.length;
+    return this.modifiedNodeIds.size;
   }
 
   isNodeUnsaved(nodeId: string): boolean {
-    if (this.unsavedChanges.has(nodeId)) return true;
-    return this.structuralChanges.some(
-      (s) =>
-        (s.type === "create" && s.id === nodeId) ||
-        (s.type === "move" && s.id === nodeId) ||
-        (s.type === "delete" && s.id === nodeId)
-    );
+    return this.modifiedNodeIds.has(nodeId);
   }
 
-  private notifySaveState(): void {
+  private markModified(nodeId: string): void {
+    this.modifiedNodeIds.add(nodeId);
+    saveStateManager.notifyListeners();
+  }
+
+  private clearModified(): void {
+    this.modifiedNodeIds.clear();
     saveStateManager.notifyListeners();
   }
 
@@ -145,19 +115,15 @@ class Store {
 
       if (result.success && result.data) {
         this.update({ tree: result.data });
-        this.baselineTree = cloneTree(result.data);
       } else if (!result.success) {
         this.update({ tree: [] });
-        this.baselineTree = [];
       }
 
       if (parentId) {
         Promise.all([api.getAncestors(parentId), api.getNode(parentId)])
           .then(([ancestors, zoomedNode]) => {
             if (ancestors.success && zoomedNode.success && ancestors.data && zoomedNode.data) {
-              this.update({
-                breadcrumbs: [...ancestors.data, zoomedNode.data],
-              });
+              this.update({ breadcrumbs: [...ancestors.data, zoomedNode.data] });
             }
           })
           .catch((err) => console.error("Failed to load breadcrumbs:", err));
@@ -167,7 +133,6 @@ class Store {
     } catch (err) {
       console.error("Failed to load tree:", err);
       this.update({ tree: [] });
-      this.baselineTree = [];
     } finally {
       if (showLoading && version === this.loadVersion) {
         this.update({ loading: false });
@@ -175,160 +140,80 @@ class Store {
     }
   }
 
-  /** Local-only. No DB write until Save. */
-  createNode(afterId: string | null, parentId: string | null): OutlineNode | null {
-    const id = randomId();
-    const insertAfterId = afterId;
-    const parent_id = afterId
-      ? (this.findNodeInTree(afterId)?.parent_id ?? parentId)
-      : parentId;
-
-    const newNode = createTreeNode(id, "", parent_id, 0, 0);
-    const newTree = addNodeToTree(
-      this.state.tree,
-      newNode,
-      parent_id,
-      insertAfterId,
-      this.state.zoomedNodeId
-    );
-    if (newTree === this.state.tree) return null;
-
-    this.structuralChanges.push({
-      type: "create",
-      id,
-      content: "",
-      parent_id,
-      insertAfterId,
-    });
-    this.update({ tree: newTree });
-    this.update({ focusedNodeId: id });
-    this.notifySaveState();
-    return newNode;
+  async createNode(afterId: string | null, parentId: string | null): Promise<OutlineNode | null> {
+    const params = afterId
+      ? { content: "", parent_id: parentId, insertAfterId: afterId }
+      : { content: "", parent_id: parentId };
+    const result = await api.createNode(params);
+    if (result.success) {
+      this.markModified(result.data!.id);
+      await this.loadTree(false);
+      this.update({ focusedNodeId: result.data!.id });
+      return result.data!;
+    }
+    console.error("createNode failed:", result.error);
+    return null;
   }
 
-  /** Manual save only — updates in-memory tree and tracks change. No persistence until Save. */
   updateContent(id: string, content: string): void {
     const node = this.findNodeInTree(id);
     if (!node) return;
-
-    const existing = this.unsavedChanges.get(id);
-    const originalContent = existing?.content?.original ?? node.content;
-
-    if (content === originalContent) {
-      if (existing) {
-        const updated = { ...existing };
-        delete updated.content;
-        if (Object.keys(updated).length === 0) {
-          this.unsavedChanges.delete(id);
-        } else {
-          this.unsavedChanges.set(id, updated);
-        }
-      }
-    } else {
-      this.unsavedChanges.set(id, {
-        ...existing,
-        content: { current: content, original: originalContent },
-      });
-    }
+    if (node.content === content) return;
 
     this.updateNodeInTree(id, { content });
-    this.notifySaveState();
+    this.markModified(id);
+
+    api.updateNode({ id, content }).then((result) => {
+      if (!result.success) console.error("updateContent failed:", result.error);
+    });
   }
 
-  /** Manual save only — tracks expand/collapse. No persistence until Save. */
   toggleExpanded(id: string): void {
     const node = this.findNodeInTree(id);
     if (!node) return;
-
     const newExpanded = !node.is_expanded;
-    const existing = this.unsavedChanges.get(id);
-    const originalExpanded = existing?.is_expanded?.original ?? node.is_expanded;
-
-    if (newExpanded === originalExpanded) {
-      if (existing) {
-        const updated = { ...existing };
-        delete updated.is_expanded;
-        if (Object.keys(updated).length === 0) {
-          this.unsavedChanges.delete(id);
-        } else {
-          this.unsavedChanges.set(id, updated);
-        }
-      }
-    } else {
-      this.unsavedChanges.set(id, {
-        ...existing,
-        is_expanded: { current: newExpanded, original: originalExpanded },
-      });
-    }
 
     this.updateNodeInTree(id, { is_expanded: newExpanded });
-    this.notifySaveState();
+    this.markModified(id);
+
+    api.updateNode({ id, is_expanded: newExpanded }).then((result) => {
+      if (!result.success) console.error("toggleExpanded failed:", result.error);
+    });
   }
 
-  /** Local-only. No DB write until Save. */
-  indentNode(id: string): void {
-    const loc = this.findLocation(id);
-    if (!loc || loc.index === 0) return;
-    const prevSibling = loc.siblings[loc.index - 1];
-    const new_parent_id = prevSibling.id;
-    const new_position = prevSibling.children.length;
-    const newTree = moveNodeInTree(this.state.tree, id, new_parent_id, new_position);
-    this.structuralChanges.push({ type: "move", id, new_parent_id, new_position });
-    this.update({ tree: newTree });
-    this.update({ focusedNodeId: id });
-    this.notifySaveState();
+  async indentNode(id: string): Promise<void> {
+    const result = await api.indentNode({ id });
+    if (result.success && result.data) {
+      this.markModified(id);
+      await this.loadTree(false);
+      this.update({ focusedNodeId: id });
+    }
   }
 
-  /** Local-only. No DB write until Save. */
-  outdentNode(id: string): void {
-    const loc = this.findLocation(id);
-    if (!loc || loc.node.parent_id === null) return;
-    const parent = this.findNodeInTree(loc.node.parent_id);
-    if (!parent) return;
-    const new_parent_id = parent.parent_id;
-    const new_position = parent.position + 1;
-    const newTree = moveNodeInTree(this.state.tree, id, new_parent_id, new_position);
-    this.structuralChanges.push({ type: "move", id, new_parent_id, new_position });
-    this.update({ tree: newTree });
-    this.update({ focusedNodeId: id });
-    this.notifySaveState();
+  async outdentNode(id: string): Promise<void> {
+    const result = await api.outdentNode({ id });
+    if (result.success && result.data) {
+      this.markModified(id);
+      await this.loadTree(false);
+      this.update({ focusedNodeId: id });
+    }
   }
 
-  /** Local-only. No DB write until Save. */
-  deleteNode(id: string): void {
-    const newTree = removeNodeFromTree(this.state.tree, id, true);
-    this.structuralChanges.push({ type: "delete", id, deleteChildren: true });
-    this.unsavedChanges.delete(id);
-    this.update({ tree: newTree });
-    this.update({ focusedNodeId: null });
-    this.notifySaveState();
+  async deleteNode(id: string): Promise<void> {
+    const result = await api.deleteNode({ id, deleteChildren: true });
+    if (result.success) {
+      this.modifiedNodeIds.delete(id);
+      saveStateManager.notifyListeners();
+      await this.loadTree(false);
+    }
   }
 
-  /** Local-only. No DB write until Save. */
-  moveNode(id: string, newParentId: string | null, newPosition: number): void {
-    const newTree = moveNodeInTree(this.state.tree, id, newParentId, newPosition);
-    this.structuralChanges.push({ type: "move", id, new_parent_id: newParentId, new_position: newPosition });
-    this.update({ tree: newTree });
-    this.notifySaveState();
-  }
-
-  private findLocation(id: string): {
-    node: OutlineTreeNode;
-    siblings: OutlineTreeNode[];
-    index: number;
-  } | null {
-    const visit = (
-      nodes: OutlineTreeNode[],
-      siblings: OutlineTreeNode[]
-    ): typeof result | null => {
-      for (let i = 0; i < nodes.length; i++) {
-        if (nodes[i].id === id) return { node: nodes[i], siblings, index: i };
-        const found = visit(nodes[i].children, nodes[i].children);
-        if (found) return found;
-      }
-      return null;
-    };
-    return visit(this.state.tree, this.state.tree);
+  async moveNode(id: string, newParentId: string | null, newPosition: number): Promise<void> {
+    const result = await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
+    if (result.success) {
+      this.markModified(id);
+      await this.loadTree(false);
+    }
   }
 
   async zoomIn(nodeId: string): Promise<void> {
@@ -356,10 +241,8 @@ class Store {
       this.update({ searchQuery: "", searchResults: [], isSearching: false });
       return;
     }
-
     this.update({ searchQuery: query, searchResults: [], isSearching: true });
     const result = await api.search({ query, limit: 50 });
-
     if (result.success) {
       this.update({ searchResults: result.data!, isSearching: false });
     }
@@ -370,108 +253,59 @@ class Store {
   }
 
   async saveAll(): Promise<{ success: boolean; savedCount: number; error?: string }> {
-    if (this.unsavedChanges.size === 0 && this.structuralChanges.length === 0) {
+    if (this.modifiedNodeIds.size === 0) {
       return { success: true, savedCount: 0 };
     }
 
     this.update({ saveInProgress: true, lastSaveError: null, lastSaveSuccess: null });
 
-    let savedCount = 0;
-    let firstError: string | null = null;
+    const count = this.modifiedNodeIds.size;
+    const result = await api.commitSave();
 
-    for (const [nodeId, change] of this.unsavedChanges) {
-      const updates: { content?: string; is_expanded?: boolean } = {};
-      if (change.content) updates.content = change.content.current;
-      if (change.is_expanded !== undefined) updates.is_expanded = change.is_expanded.current;
-
-      if (Object.keys(updates).length === 0) continue;
-
-      const result = await api.updateNode({ id: nodeId, ...updates });
-      if (result.success) {
-        this.unsavedChanges.delete(nodeId);
-        savedCount++;
-      } else if (!firstError) {
-        firstError = result.error ?? "Unknown error";
-      }
-    }
-
-    for (const op of this.structuralChanges) {
-      if (firstError) break;
-      if (op.type === "create") {
-        const node = this.findNodeInTree(op.id);
-        const content = node?.content ?? op.content;
-        const params = op.insertAfterId
-          ? { content, parent_id: op.parent_id, insertAfterId: op.insertAfterId, id: op.id }
-          : { content, parent_id: op.parent_id, id: op.id };
-        const result = await api.createNode(params);
-        if (result.success) {
-          savedCount++;
-        } else if (!firstError) {
-          firstError = result.error ?? "Unknown error";
-        }
-      } else if (op.type === "move") {
-        const result = await api.moveNode({
-          id: op.id,
-          new_parent_id: op.new_parent_id,
-          new_position: op.new_position,
-        });
-        if (result.success) {
-          savedCount++;
-        } else if (!firstError) {
-          firstError = result.error ?? "Unknown error";
-        }
-      } else if (op.type === "delete") {
-        const result = await api.deleteNode({ id: op.id, deleteChildren: op.deleteChildren });
-        if (result.success) {
-          savedCount++;
-        } else if (!firstError) {
-          firstError = result.error ?? "Unknown error";
-        }
-      }
-    }
-
-    if (!firstError) {
-      this.structuralChanges.length = 0;
-    }
-
+    this.clearModified();
     this.update({
       saveInProgress: false,
-      unsavedCount: this.unsavedChanges.size + this.structuralChanges.length,
-      lastSaveSuccess: firstError ? null : savedCount,
-      lastSaveError: firstError,
+      unsavedCount: 0,
+      lastSaveSuccess: result.success ? count : null,
+      lastSaveError: result.success ? null : (result as { error?: string }).error ?? "Save failed",
     });
-    this.notifySaveState();
+    saveStateManager.notifyListeners();
 
-    await this.loadTree(false);
     return {
-      success: !firstError,
-      savedCount,
-      error: firstError ?? undefined,
+      success: result.success,
+      savedCount: result.success ? count : 0,
+      error: result.success ? undefined : (result as { error?: string }).error,
     };
   }
 
   async discardAll(): Promise<{ success: boolean; discardedCount: number }> {
-    const count = this.unsavedChanges.size + this.structuralChanges.length;
+    const count = this.modifiedNodeIds.size;
     if (count === 0) {
       return { success: true, discardedCount: 0 };
     }
 
     this.update({ discardInProgress: true });
 
-    this.unsavedChanges.clear();
-    this.structuralChanges.length = 0;
-    this.update({ tree: cloneTree(this.baselineTree) });
+    const result = await api.restoreFromBackup();
+    const ok = (result as { success?: boolean }).success === true;
 
+    this.clearModified();
     this.update({
       discardInProgress: false,
       unsavedCount: 0,
       lastSaveError: null,
       lastSaveSuccess: null,
     });
-    this.notifySaveState();
+    saveStateManager.notifyListeners();
 
-    await this.loadTree(false);
-    return { success: true, discardedCount: count };
+    if (ok) {
+      await this.loadTree(false);
+    } else {
+      const err = (result as { error?: string }).error;
+      alert(`Discard failed: ${err ?? "Unknown error"}`);
+    }
+
+    return { success: ok, discardedCount: count };
   }
 
   clearSaveFeedback(): void {
@@ -516,9 +350,7 @@ class Store {
     updates: Partial<OutlineTreeNode>
   ): OutlineTreeNode[] {
     return nodes.map((node) => {
-      if (node.id === id) {
-        return { ...node, ...updates };
-      }
+      if (node.id === id) return { ...node, ...updates };
       if (node.children.length > 0) {
         return {
           ...node,

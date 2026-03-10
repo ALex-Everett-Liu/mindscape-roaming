@@ -27,8 +27,6 @@ export interface CreateNodeParams {
   parent_id: string | null;
   position?: number;
   insertAfterId?: string;
-  /** Client-generated ID for manual-save; used when node was created locally and is being persisted on Save */
-  id?: string;
 }
 
 export interface UpdateNodeParams {

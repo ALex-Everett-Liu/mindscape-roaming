@@ -60,8 +60,8 @@ export class OutlineService {
   createNode(params: CreateNodeParams): RpcResult<OutlineNode> {
     try {
       const node = params.insertAfterId
-        ? this.repo.createAfter(params.content, params.insertAfterId, params.id)
-        : this.repo.create(params.content, params.parent_id, params.position, params.id);
+        ? this.repo.createAfter(params.content, params.insertAfterId)
+        : this.repo.create(params.content, params.parent_id, params.position);
       return { success: true, data: node };
     } catch (e) {
       return { success: false, error: String(e) };

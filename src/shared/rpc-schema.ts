@@ -77,6 +77,18 @@ export type OutlinerRPCType = {
         params: { pluginId: string };
         response: RpcResult<boolean>;
       };
+      commitSave: {
+        params: Record<string, never>;
+        response: RpcResult<{ success: boolean }>;
+      };
+      restoreFromBackup: {
+        params: Record<string, never>;
+        response: RpcResult<{ success: boolean; error?: string }>;
+      };
+      hasBackup: {
+        params: Record<string, never>;
+        response: RpcResult<boolean>;
+      };
     };
     messages: Record<string, unknown>;
   };

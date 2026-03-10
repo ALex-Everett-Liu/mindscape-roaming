@@ -30,6 +30,9 @@ type OutlinerRpcRequest = {
   listPlugins: (params?: Record<string, never>) => Promise<RpcResult<PluginInfo[]>>;
   enablePlugin: (params: { pluginId: string }) => Promise<RpcResult<boolean>>;
   disablePlugin: (params: { pluginId: string }) => Promise<RpcResult<boolean>>;
+  commitSave: (params?: Record<string, never>) => Promise<RpcResult<{ success: boolean }>>;
+  restoreFromBackup: (params?: Record<string, never>) => Promise<RpcResult<{ success: boolean; error?: string }>>;
+  hasBackup: (params?: Record<string, never>) => Promise<RpcResult<boolean>>;
 };
 
 let rpcRequest: OutlinerRpcRequest | null = null;
@@ -63,4 +66,7 @@ export const api = {
   listPlugins: () => getRpc().listPlugins({}),
   enablePlugin: (pluginId: string) => getRpc().enablePlugin({ pluginId }),
   disablePlugin: (pluginId: string) => getRpc().disablePlugin({ pluginId }),
+  commitSave: () => getRpc().commitSave({}),
+  restoreFromBackup: () => getRpc().restoreFromBackup({}),
+  hasBackup: () => getRpc().hasBackup({}),
 };

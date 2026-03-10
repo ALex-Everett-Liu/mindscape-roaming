@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2025-03-10
+
 ### Added
 
-- **Full manual-save control**: All operations now require explicit Save before any DB write
-  - Create, move, indent, outdent, delete are now local-only until you Save
-  - `outliner.db` remains unchanged until you approve changes (Save or Ctrl+S)
+- **Backup-on-edit**: DB backup created on first edit; Discard restores from backup
+  - All operations write directly to `outliner.db`
+  - Lightweight tracking: `Set<nodeId>` for UI (Save/Discard buttons, amber borders, close warning)
+  - Save = delete backup (commit). Discard = overwrite db with backup, reload
+  - `ensureBackup`, `restoreFromBackup`, `commitSave` in DB layer; plugin reload after restore
+
+### Changed
+
+- Simplified save mechanism: removed in-memory change tracking, treeUtils, path-copying
+- Reverted to direct API writes for create, move, indent, outdent, delete, content, expand
 
 ## [0.1.3] - 2025-03-10
 
@@ -26,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Manual save mode**: All edits (content, expand/collapse, create, move, indent, outdent, delete) are tracked locally until you explicitly Save
+- **Manual save mode**: All edits write to DB immediately; backup + lightweight tracking for Save/Discard
   - Save / Discard buttons in toolbar (shown only when there are unsaved changes)
   - `Ctrl+S` / `Cmd+S` to save
   - Visual indicator (amber border) on edited nodes
@@ -92,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.0...v0.1.1

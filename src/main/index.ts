@@ -1,5 +1,5 @@
 import Electrobun, { BrowserWindow, BrowserView } from "electrobun/bun";
-import { getDatabase, closeDatabase } from "./database/connection";
+import { getDatabase, closeDatabase, ensureBackup, restoreFromBackup, commitSave, hasBackup } from "./database/connection";
 import { PluginManager } from "./plugin-system/PluginManager";
 import { loadMainPlugins } from "./skeletons/loadPlugins";
 
@@ -21,19 +21,44 @@ let hasUnsavedChanges = false;
 let userConfirmedQuitDespiteUnsaved = false;
 
 // ─── Build RPC from Plugins ───────────────────────────
-const rpcHandlers = pluginManager.buildRpcHandlers();
+const baseHandlers = pluginManager.buildRpcHandlers();
+const mutatingOps = ["createNode", "updateNode", "moveNode", "indentNode", "outdentNode", "deleteNode"];
+
+const wrapMutating = (name: string, fn: (params: unknown) => Promise<unknown>) => {
+  return async (params: unknown) => {
+    ensureBackup();
+    return fn(params);
+  };
+};
+
+const requests: Record<string, (params: unknown) => Promise<unknown>> = {
+  ...(baseHandlers.requests as Record<string, (params: unknown) => Promise<unknown>>),
+  reportUnsavedState: (params: unknown) => {
+    hasUnsavedChanges = (params as { hasUnsaved: boolean }).hasUnsaved;
+    return Promise.resolve();
+  },
+  commitSave: async () => {
+    commitSave();
+    return Promise.resolve({ success: true });
+  },
+  restoreFromBackup: async () => {
+    const result = restoreFromBackup();
+    if (result.success) {
+      await pluginManager.reloadWithNewDatabase(getDatabase());
+    }
+    return Promise.resolve({ success: result.success, error: result.error });
+  },
+  hasBackup: () => Promise.resolve({ success: true, data: hasBackup() }),
+};
+
+for (const name of mutatingOps) {
+  const fn = requests[name];
+  if (fn) requests[name] = wrapMutating(name, fn);
+}
 
 const outlinerRPC = BrowserView.defineRPC({
   maxRequestTime: 5000,
-  handlers: {
-    requests: {
-      ...(rpcHandlers.requests as Record<string, unknown>),
-      reportUnsavedState: (params: unknown) => {
-        hasUnsavedChanges = (params as { hasUnsaved: boolean }).hasUnsaved;
-        return Promise.resolve();
-      },
-    },
-  },
+  handlers: { requests },
 });
 
 // ─── Create Main Window ───────────────────────────────

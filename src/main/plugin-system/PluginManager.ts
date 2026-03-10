@@ -25,13 +25,33 @@ export class PluginManager {
   readonly rpcRegistry = new RpcHandlerRegistry();
 
   constructor(private db: Database) {
-    this.db.run(`
+    this.initDb(db);
+  }
+
+  private initDb(database: Database) {
+    database.run(`
       CREATE TABLE IF NOT EXISTS _plugin_state (
         plugin_id TEXT PRIMARY KEY,
         enabled INTEGER NOT NULL DEFAULT 1
       )
     `);
     this.loadEnabledState();
+  }
+
+  /** Swap database after restore. Unloads and reloads all plugins with new db. */
+  async reloadWithNewDatabase(newDb: Database): Promise<void> {
+    for (const pluginId of [...this.loadedPlugins].reverse()) {
+      const plugin = this.plugins.get(pluginId);
+      if (plugin?.onUnload) await plugin.onUnload();
+      this.rpcRegistry.removeByPlugin(pluginId);
+      this.loadedPlugins.delete(pluginId);
+    }
+    this.db = newDb;
+    this.initDb(newDb);
+    const resolution = resolveDependencies(this.manifests, this.enabledPlugins);
+    for (const pluginId of resolution.loadOrder) {
+      if (this.enabledPlugins.has(pluginId)) await this.loadPlugin(pluginId);
+    }
   }
 
   private loadEnabledState(): void {

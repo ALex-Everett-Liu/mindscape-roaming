@@ -116,10 +116,9 @@ export class NodeRepository {
   create(
     content: string,
     parentId: string | null,
-    position?: number,
-    clientId?: string
+    position?: number
   ): OutlineNode {
-    const id = clientId ?? Bun.randomUUIDv7();
+    const id = Bun.randomUUIDv7();
     const now = Date.now();
     if (position === undefined) {
       const r = this.stmtGetMaxPosition.get(parentId) as { max_pos: number | null };
@@ -139,10 +138,10 @@ export class NodeRepository {
     return this.getById(id)!;
   }
 
-  createAfter(content: string, afterId: string, clientId?: string): OutlineNode {
+  createAfter(content: string, afterId: string): OutlineNode {
     const s = this.getById(afterId);
     if (!s) throw new Error(`Node ${afterId} not found`);
-    return this.create(content, s.parent_id, s.position + 1, clientId);
+    return this.create(content, s.parent_id, s.position + 1);
   }
 
   updateContent(id: string, content: string): OutlineNode {
