@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-03-10
+
+### Fixed
+
+- **Enter → Loading forever**: No longer show full-screen Loading when refreshing after user actions (create, indent, outdent, zoom, etc.); only show Loading on initial app load
+- **Load hangs**: Breadcrumbs fetch moved to background so it never blocks the loading state; added load version guard for concurrent loads
+- **Contenteditable duplication**: Typing in a node no longer doubles text (e.g. "aaa" → "aaaaaa"); sync from props only when switching nodes or when blurred, never while focused
+- **Database path**: Use project `./data/` by default; override with `ELECTROBUN_APP_DATA` if set
+
 ## [0.1.2] - 2025-03-10
 
 ### Added
@@ -78,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/releases/tag/v0.1.0

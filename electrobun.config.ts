@@ -4,7 +4,7 @@ const config: ElectrobunConfig = {
   app: {
     name: "Outliner",
     identifier: "sh.blackboard.outliner",
-    version: "0.1.0",
+    version: "0.1.3",
   },
   build: {
     bun: {

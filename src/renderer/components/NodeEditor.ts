@@ -30,11 +30,29 @@ export function NodeEditor({
   onFocus,
 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastNodeIdRef = useRef<string>(nodeId);
+  const hasInitializedRef = useRef(false);
 
   const debouncedSave = useCallback(
     debounce((text: string) => onChange(text), 300),
     [onChange]
   );
+
+  // Sync from props only when switching nodes or when blurred — never while focused/typing.
+  // Letting Preact patch ${content} into contenteditable on every re-render duplicates text.
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (lastNodeIdRef.current !== nodeId) {
+      lastNodeIdRef.current = nodeId;
+      hasInitializedRef.current = false;
+    }
+    if (!hasInitializedRef.current) {
+      editorRef.current.textContent = content;
+      hasInitializedRef.current = true;
+    } else if (!isFocused && editorRef.current.textContent !== content) {
+      editorRef.current.textContent = content;
+    }
+  }, [nodeId, content, isFocused]);
 
   useEffect(() => {
     if (isFocused && editorRef.current) {
@@ -70,8 +88,6 @@ export function NodeEditor({
       onInput=${handleInput}
       onKeyDown=${onKeyDown}
       onFocus=${onFocus}
-    >
-      ${content}
-    </div>
+    />
   `;
 }

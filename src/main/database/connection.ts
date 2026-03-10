@@ -1,27 +1,14 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 import { mkdirSync, existsSync } from "fs";
-import Electrobun from "electrobun/bun";
 
 let db: Database | null = null;
 
 export function getDatabase(): Database {
   if (db) return db;
 
-  // Prefer project ./data/ when it exists (dev) or ELECTROBUN_APP_DATA env
-  const appDataEnv = process.env.ELECTROBUN_APP_DATA;
-  const projectDataDir = path.join(process.cwd(), "data");
-  const projectDbPath = path.join(projectDataDir, "outliner.db");
-
-  let dataDir: string;
-  if (appDataEnv) {
-    dataDir = appDataEnv;
-  } else if (existsSync(projectDbPath)) {
-    // Use existing DB in project data folder
-    dataDir = projectDataDir;
-  } else {
-    dataDir = Electrobun.Utils.paths.userData;
-  }
+  // Use project's ./data/ folder. Override with ELECTROBUN_APP_DATA if set.
+  const dataDir = process.env.ELECTROBUN_APP_DATA ?? path.join(process.cwd(), "data");
 
   const dbPath = path.join(dataDir, "outliner.db");
 

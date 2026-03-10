@@ -44,6 +44,7 @@ class Store {
 
   private unsavedChanges = new Map<string, UnsavedNodeChange>();
   private listeners = new Set<Listener>();
+  private loadVersion = 0;
 
   constructor() {
     saveStateManager.register("outliner", {
@@ -98,8 +99,9 @@ class Store {
     saveStateManager.notifyListeners();
   }
 
-  async loadTree(): Promise<void> {
-    this.update({ loading: true });
+  async loadTree(showLoading = true): Promise<void> {
+    const version = ++this.loadVersion;
+    if (showLoading) this.update({ loading: true });
 
     try {
       const parentId = this.state.zoomedNodeId;
@@ -110,26 +112,33 @@ class Store {
         ),
       ]);
 
-      if (result.success) {
-        this.update({ tree: result.data! });
+      if (result.success && result.data) {
+        this.update({ tree: result.data });
+      } else if (!result.success) {
+        this.update({ tree: [] });
+      }
 
-        if (parentId) {
-          const ancestors = await api.getAncestors(parentId);
-          const zoomedNode = await api.getNode(parentId);
-          if (ancestors.success && zoomedNode.success) {
-            this.update({
-              breadcrumbs: [...ancestors.data!, zoomedNode.data!],
-            });
-          }
-        } else {
-          this.update({ breadcrumbs: [] });
-        }
+      // Load breadcrumbs in background — never block loading state on these
+      if (parentId) {
+        Promise.all([api.getAncestors(parentId), api.getNode(parentId)])
+          .then(([ancestors, zoomedNode]) => {
+            if (ancestors.success && zoomedNode.success && ancestors.data && zoomedNode.data) {
+              this.update({
+                breadcrumbs: [...ancestors.data, zoomedNode.data],
+              });
+            }
+          })
+          .catch((err) => console.error("Failed to load breadcrumbs:", err));
+      } else {
+        this.update({ breadcrumbs: [] });
       }
     } catch (err) {
       console.error("Failed to load tree:", err);
-      this.update({ tree: [], loading: false });
+      this.update({ tree: [] });
     } finally {
-      this.update({ loading: false });
+      if (showLoading && version === this.loadVersion) {
+        this.update({ loading: false });
+      }
     }
   }
 
@@ -140,7 +149,7 @@ class Store {
 
     const result = await api.createNode(params);
     if (result.success) {
-      await this.loadTree();
+      await this.loadTree(false);
       this.update({ focusedNodeId: result.data!.id });
       return result.data!;
     }
@@ -210,7 +219,7 @@ class Store {
   async indentNode(id: string): Promise<void> {
     const result = await api.indentNode({ id });
     if (result.success && result.data) {
-      await this.loadTree();
+      await this.loadTree(false);
       this.update({ focusedNodeId: id });
     }
   }
@@ -218,7 +227,7 @@ class Store {
   async outdentNode(id: string): Promise<void> {
     const result = await api.outdentNode({ id });
     if (result.success && result.data) {
-      await this.loadTree();
+      await this.loadTree(false);
       this.update({ focusedNodeId: id });
     }
   }
@@ -228,7 +237,7 @@ class Store {
     if (result.success) {
       this.unsavedChanges.delete(id);
       this.notifySaveState();
-      await this.loadTree();
+      await this.loadTree(false);
     }
   }
 
@@ -239,13 +248,13 @@ class Store {
   ): Promise<void> {
     const result = await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
     if (result.success) {
-      await this.loadTree();
+      await this.loadTree(false);
     }
   }
 
   async zoomIn(nodeId: string): Promise<void> {
     this.update({ zoomedNodeId: nodeId });
-    await this.loadTree();
+    await this.loadTree(false);
   }
 
   async zoomOut(): Promise<void> {
@@ -255,12 +264,12 @@ class Store {
     } else {
       this.update({ zoomedNodeId: null });
     }
-    await this.loadTree();
+    await this.loadTree(false);
   }
 
   async zoomToRoot(): Promise<void> {
     this.update({ zoomedNodeId: null });
-    await this.loadTree();
+    await this.loadTree(false);
   }
 
   async search(query: string): Promise<void> {
@@ -348,7 +357,7 @@ class Store {
     });
     this.notifySaveState();
 
-    await this.loadTree();
+    await this.loadTree(false);
     return { success: true, discardedCount: count };
   }
 
