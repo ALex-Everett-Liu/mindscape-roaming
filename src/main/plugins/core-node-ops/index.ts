@@ -2,7 +2,6 @@ import type { MainPlugin } from "../../plugin-system/PluginManifest";
 import type { MainPluginContext } from "../../plugin-system/PluginContext";
 import { manifest } from "./manifest";
 import { OutlineService } from "./service";
-import { randomUUID } from "crypto";
 
 const plugin: MainPlugin = {
   manifest,
@@ -64,10 +63,10 @@ const plugin: MainPlugin = {
         INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, created_at, updated_at, is_deleted)
         VALUES (?, ?, ?, ?, 1, ?, ?, 0)
       `);
-      const rootId = randomUUID();
-      const c1 = randomUUID();
-      const c2 = randomUUID();
-      const gc = randomUUID();
+      const rootId = Bun.randomUUIDv7();
+      const c1 = Bun.randomUUIDv7();
+      const c2 = Bun.randomUUIDv7();
+      const gc = Bun.randomUUIDv7();
       db.transaction(() => {
         ins.run(rootId, "Welcome to Outliner", null, 0, now, now);
         ins.run(c1, "Click on any bullet to zoom in", rootId, 0, now, now);

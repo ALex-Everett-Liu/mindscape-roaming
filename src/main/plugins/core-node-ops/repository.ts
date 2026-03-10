@@ -1,5 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "crypto";
 import type { OutlineNode, OutlineTreeNode } from "../../../shared/types";
 
 type Statement = ReturnType<Database["prepare"]>;
@@ -119,7 +118,7 @@ export class NodeRepository {
     parentId: string | null,
     position?: number
   ): OutlineNode {
-    const id = randomUUID();
+    const id = Bun.randomUUIDv7();
     const now = Date.now();
     if (position === undefined) {
       const r = this.stmtGetMaxPosition.get(parentId) as { max_pos: number | null };

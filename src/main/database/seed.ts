@@ -1,5 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "crypto";
 
 export function seedInitialData(db: Database): void {
   const count = db
@@ -10,10 +9,10 @@ export function seedInitialData(db: Database): void {
 
   const now = Date.now();
 
-  const rootId = randomUUID();
-  const child1Id = randomUUID();
-  const child2Id = randomUUID();
-  const grandchildId = randomUUID();
+  const rootId = Bun.randomUUIDv7();
+  const child1Id = Bun.randomUUIDv7();
+  const child2Id = Bun.randomUUIDv7();
+  const grandchildId = Bun.randomUUIDv7();
 
   const insert = db.prepare(`
     INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, created_at, updated_at, is_deleted)

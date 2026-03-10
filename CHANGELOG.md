@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed auto-save: content and expand/collapse no longer persist immediately
 - Structural operations (create, indent, outdent, move, delete) still persist immediately
+- Use `Bun.randomUUIDv7()` instead of Node `crypto.randomUUID()` for node IDs
+- Move `architecture-framework-design.md` to `docs/`
 
 ## [0.1.1] - 2025-03-10
 
