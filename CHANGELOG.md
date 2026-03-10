@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs**: Save mechanism documentation
+  - `SAVE_MECHANISM_SPEC.md` — Technical spec for expert review (failure modes, assumptions)
+  - `An expert review to SAVE_MECHANISM_SPEC.md` — Expert analysis and actionable recommendations
+  - `roadmap.md` — Future improvement roadmap (atomic ops, Backup API refactor, crash recovery)
 - **Backup-on-edit**: DB backup created on first edit; Discard restores from backup
   - All operations write directly to `outliner.db`
   - Lightweight tracking: `Set<nodeId>` for UI (Save/Discard buttons, amber borders, close warning)
