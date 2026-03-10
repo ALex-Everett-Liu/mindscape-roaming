@@ -1,58 +1,85 @@
 /**
- * Pure tree manipulation utilities for manual-save.
- * All ops return a new tree; original is never mutated.
+ * Tree manipulation with path-copying (structural sharing).
+ * Only the path from root to the modified node is cloned — O(depth) per op.
+ * Move also clones the moved subtree O(m) to update depths; typical single-node move is O(depth).
+ * Unchanged subtrees are shared by reference. Scales to 100k+ nodes.
  */
 import type { OutlineTreeNode } from "../../shared/types";
 
-function deepCloneTree(nodes: OutlineTreeNode[]): OutlineTreeNode[] {
-  return nodes.map((n) => ({
-    ...n,
-    children: deepCloneTree(n.children),
-  }));
-}
+type Loc = { node: OutlineTreeNode; siblings: OutlineTreeNode[]; index: number; depth: number };
 
-function withDepth(nodes: OutlineTreeNode[], depth: number): OutlineTreeNode[] {
-  return nodes.map((n) => ({ ...n, depth, children: withDepth(n.children, depth + 1) }));
-}
-
-function reindexPositions(children: OutlineTreeNode[]): void {
-  children.forEach((c, i) => {
-    c.position = i;
-  });
-}
-
-/** Find node and its location: parent's children array + index. */
 function findLocation(
-  nodes: OutlineTreeNode[],
-  id: string
-): { node: OutlineTreeNode; siblings: OutlineTreeNode[]; index: number; depth: number } | null {
-  for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i].id === id) {
-      return { node: nodes[i], siblings: nodes, index: i, depth: 0 };
-    }
-    const found = findLocationInParent(nodes[i].children, id, nodes[i].children, 1);
-    if (found) return found;
-  }
-  return null;
-}
-
-function findLocationInParent(
   nodes: OutlineTreeNode[],
   id: string,
   siblings: OutlineTreeNode[],
   depth: number
-): { node: OutlineTreeNode; siblings: OutlineTreeNode[]; index: number; depth: number } | null {
+): Loc | null {
   for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i].id === id) {
-      return { node: nodes[i], siblings, index: i, depth };
-    }
-    const found = findLocationInParent(nodes[i].children, id, nodes[i].children, depth + 1);
+    if (nodes[i].id === id) return { node: nodes[i], siblings, index: i, depth };
+    const found = findLocation(nodes[i].children, id, nodes[i].children, depth + 1);
     if (found) return found;
   }
   return null;
 }
 
-/** Create a new OutlineTreeNode. */
+/**
+ * Clone only the path from root to targetId. Returns new root and the location
+ * in the cloned tree. Unchanged branches are shared. O(depth).
+ */
+function copyPathTo(
+  nodes: OutlineTreeNode[],
+  targetId: string,
+  depth: number
+): { root: OutlineTreeNode[]; loc: Loc } | null {
+  for (let i = 0; i < nodes.length; i++) {
+    if (nodes[i].id === targetId) {
+      const newSiblings = nodes.slice();
+      newSiblings[i] = { ...nodes[i], depth, children: nodes[i].children };
+      return { root: newSiblings, loc: { node: newSiblings[i], siblings: newSiblings, index: i, depth } };
+    }
+    const found = copyPathTo(nodes[i].children, targetId, depth + 1);
+    if (found) {
+      const newChild = { ...nodes[i], children: found.root };
+      const newSiblings = nodes.slice();
+      newSiblings[i] = newChild;
+      return { root: newSiblings, loc: found.loc };
+    }
+  }
+  return null;
+}
+
+/**
+ * Clone path to the parent of targetId, or clone root if targetId is at root.
+ * Used when we need the siblings array containing targetId.
+ */
+function copyPathToParentOf(
+  nodes: OutlineTreeNode[],
+  targetId: string,
+  depth: number
+): { root: OutlineTreeNode[]; siblings: OutlineTreeNode[]; index: number; depth: number } | null {
+  for (let i = 0; i < nodes.length; i++) {
+    if (nodes[i].id === targetId) {
+      const newSiblings = nodes.slice();
+      newSiblings[i] = { ...nodes[i], depth, children: nodes[i].children };
+      return { root: newSiblings, siblings: newSiblings, index: i, depth };
+    }
+    const found = copyPathToParentOf(nodes[i].children, targetId, depth + 1);
+    if (found) {
+      const newChild = { ...nodes[i], children: found.root };
+      const newSiblings = nodes.slice();
+      newSiblings[i] = newChild;
+      return { root: newSiblings, siblings: found.siblings, index: found.index, depth: found.depth };
+    }
+  }
+  return null;
+}
+
+function reindexPositions(children: OutlineTreeNode[]): void {
+  for (let i = 0; i < children.length; i++) {
+    children[i].position = i;
+  }
+}
+
 export function createTreeNode(
   id: string,
   content: string,
@@ -74,7 +101,7 @@ export function createTreeNode(
   };
 }
 
-/** Add node to tree. rootParentId: when parentId is the virtual root (e.g. zoomed node not in tree), use tree root as siblings. */
+/** Add node. Path-copy to insertion point only. O(depth). */
 export function addNodeToTree(
   tree: OutlineTreeNode[],
   newNode: OutlineTreeNode,
@@ -82,77 +109,57 @@ export function addNodeToTree(
   insertAfterId: string | null,
   rootParentId?: string | null
 ): OutlineTreeNode[] {
-  const cloned = deepCloneTree(tree);
-
   if (insertAfterId !== null) {
-    const loc = findLocation(cloned, insertAfterId);
-    if (!loc) return tree;
-    const node = { ...newNode, depth: loc.depth, position: loc.index + 1 };
-    node.children = withDepth(node.children, loc.depth + 1);
-    loc.siblings.splice(loc.index + 1, 0, node);
-    reindexPositions(loc.siblings);
-  } else {
-    let target: OutlineTreeNode[];
-    let depth: number;
-    if (parentId === null) {
-      target = cloned;
-      depth = 0;
-    } else {
-      const loc = findLocation(cloned, parentId);
-      if (loc) {
-        target = loc.node.children;
-        depth = loc.depth + 1;
-      } else if (rootParentId !== undefined && parentId === rootParentId) {
-        target = cloned;
-        depth = tree[0]?.depth ?? 0;
-      } else {
-        return tree;
-      }
-    }
-    const node = { ...newNode, depth, position: target.length };
-    node.children = withDepth(node.children, depth + 1);
-    target.push(node);
-    reindexPositions(target);
+    const found = copyPathToParentOf(tree, insertAfterId, 0);
+    if (!found) return tree;
+    const { siblings, index, depth } = found;
+    const node = { ...newNode, depth, position: index + 1 };
+    node.children = [];
+    siblings.splice(index + 1, 0, node);
+    reindexPositions(siblings);
+    return found.root;
   }
-  return withDepth(cloned, 0);
+
+  if (parentId === null || (rootParentId !== undefined && parentId === rootParentId)) {
+    const newRoot = tree.slice();
+    const depth = tree[0]?.depth ?? 0;
+    const node = { ...newNode, depth, position: newRoot.length };
+    node.children = [];
+    newRoot.push(node);
+    reindexPositions(newRoot);
+    return newRoot;
+  }
+
+  const found = copyPathTo(tree, parentId, 0);
+  if (!found) return tree;
+  const parent = found.loc.node;
+  const depth = found.loc.depth + 1;
+  const children = parent.children.slice();
+  const node = { ...newNode, depth, position: children.length };
+  node.children = [];
+  children.push(node);
+  reindexPositions(children);
+  found.loc.siblings[found.loc.index] = { ...parent, children };
+  return found.root;
 }
 
-/** Extract node from tree (remove it). Returns new tree and extracted node. */
+function cloneSubtree(n: OutlineTreeNode, depth: number): OutlineTreeNode {
+  return { ...n, depth, children: n.children.map((c) => cloneSubtree(c, depth + 1)) };
+}
+
+/** Extract node (remove from tree). Path-copy O(depth). Returns cloned node (O(subtree)) so we can mutate depths. */
 export function extractNodeFromTree(
   tree: OutlineTreeNode[],
   id: string
 ): { tree: OutlineTreeNode[]; node: OutlineTreeNode | null } {
-  const cloned = deepCloneTree(tree);
-  const loc = findLocation(cloned, id);
-  if (!loc) return { tree, node: null };
-  const [node] = loc.siblings.splice(loc.index, 1);
-  reindexPositions(loc.siblings);
-  return { tree: withDepth(cloned, 0), node };
+  const found = copyPathToParentOf(tree, id, 0);
+  if (!found) return { tree, node: null };
+  const [raw] = found.siblings.splice(found.index, 1);
+  reindexPositions(found.siblings);
+  return { tree: found.root, node: cloneSubtree(raw, raw.depth) };
 }
 
-/** Indent: move node to become last child of previous sibling. */
-export function indentNodeInTree(tree: OutlineTreeNode[], id: string): OutlineTreeNode[] | null {
-  const loc = findLocation(tree, id);
-  if (!loc || loc.index === 0) return null;
-  const prevSibling = loc.siblings[loc.index - 1];
-  const newParentId = prevSibling.id;
-  const newPosition = prevSibling.children.length;
-  return moveNodeInTree(tree, id, newParentId, newPosition);
-}
-
-/** Outdent: move node to become next sibling of parent. */
-export function outdentNodeInTree(tree: OutlineTreeNode[], id: string): OutlineTreeNode[] | null {
-  const loc = findLocation(tree, id);
-  if (!loc || loc.node.parent_id === null) return null;
-  const parentId = loc.node.parent_id;
-  const parentLoc = findLocation(tree, parentId);
-  if (!parentLoc) return null;
-  const newParentId = parentLoc.node.parent_id;
-  const newPosition = parentLoc.index + 1;
-  return moveNodeInTree(tree, id, newParentId, newPosition);
-}
-
-/** Move node within tree. */
+/** Move node. Path-copy to source and destination. O(depth). */
 export function moveNodeInTree(
   tree: OutlineTreeNode[],
   id: string,
@@ -162,54 +169,73 @@ export function moveNodeInTree(
   const { tree: without, node } = extractNodeFromTree(tree, id);
   if (!node) return tree;
 
-  const cloned = deepCloneTree(without);
-  let targetSiblings: OutlineTreeNode[];
-  let targetDepth: number;
+  node.parent_id = newParentId;
+  node.position = newPosition;
 
   if (newParentId === null) {
-    targetSiblings = cloned;
-    targetDepth = 0;
-  } else {
-    const parentLoc = findLocation(cloned, newParentId);
-    if (!parentLoc) return tree;
-    targetSiblings = parentLoc.node.children;
-    targetDepth = parentLoc.depth + 1;
+    const newRoot = without.slice();
+    node.depth = 0;
+    for (const c of node.children) c.depth = 1;
+    newRoot.splice(newPosition, 0, node);
+    reindexPositions(newRoot);
+    return newRoot;
   }
 
-  const n = { ...node, parent_id: newParentId, depth: targetDepth, position: newPosition };
-  n.children = withDepth(n.children, targetDepth + 1);
-  targetSiblings.splice(newPosition, 0, n);
-  reindexPositions(targetSiblings);
-
-  return withDepth(cloned, 0);
+  const found = copyPathTo(without, newParentId, 0);
+  if (!found) return tree;
+  const parentLoc = findLocation(found.root, newParentId, found.root, 0);
+  if (!parentLoc) return tree;
+  const targetDepth = parentLoc.depth + 1;
+  node.depth = targetDepth;
+  const updateChildrenDepth = (nodes: OutlineTreeNode[], d: number) => {
+    for (const c of nodes) {
+      c.depth = d;
+      if (c.children.length) updateChildrenDepth(c.children, d + 1);
+    }
+  };
+  updateChildrenDepth(node.children, targetDepth + 1);
+  const children = parentLoc.node.children.slice();
+  children.splice(newPosition, 0, node);
+  reindexPositions(children);
+  parentLoc.siblings[parentLoc.index] = { ...parentLoc.node, children };
+  return found.root;
 }
 
-/** Remove node from tree. If removeChildren, deletes subtree; else reparents children. */
+/** Remove node. Path-copy only. O(depth). */
 export function removeNodeFromTree(
   tree: OutlineTreeNode[],
   id: string,
   removeChildren: boolean
 ): OutlineTreeNode[] {
-  const cloned = deepCloneTree(tree);
-  const loc = findLocation(cloned, id);
-  if (!loc) return tree;
+  const found = copyPathToParentOf(tree, id, 0);
+  if (!found) return tree;
+
+  const { siblings, index } = found;
+  const node = siblings[index];
 
   if (removeChildren) {
-    loc.siblings.splice(loc.index, 1);
+    siblings.splice(index, 1);
   } else {
-    const node = loc.siblings[loc.index];
-    const children = [...node.children];
-    children.forEach((c, i) => {
-      c.parent_id = node.parent_id;
-      c.position = loc.index + i;
-    });
-    loc.siblings.splice(loc.index, 1, ...children);
+    const children = node.children.slice();
+    const parentId = node.parent_id;
+    const basePos = node.position;
+    for (let i = 0; i < children.length; i++) {
+      children[i].parent_id = parentId;
+      children[i].position = basePos + i;
+    }
+    siblings.splice(index, 1, ...children);
   }
-  reindexPositions(loc.siblings);
-  return withDepth(cloned, 0);
+  reindexPositions(siblings);
+  return found.root;
 }
 
-/** Deep clone for baseline snapshot. */
+/**
+ * Full deep clone. Use only when necessary (baseline snapshot, discard restore).
+ * O(n) — avoid in hot paths.
+ */
 export function cloneTree(tree: OutlineTreeNode[]): OutlineTreeNode[] {
-  return deepCloneTree(tree);
+  return tree.map((n) => ({
+    ...n,
+    children: cloneTree(n.children),
+  }));
 }
