@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Full manual-save control**: All operations now require explicit Save before any DB write
+  - Create, move, indent, outdent, delete are now local-only until you Save
+  - `outliner.db` remains unchanged until you approve changes (Save or Ctrl+S)
+
 ## [0.1.3] - 2025-03-10
 
 ### Fixed
@@ -20,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Manual save mode**: All content and expand/collapse edits are tracked locally until you explicitly Save
+- **Manual save mode**: All edits (content, expand/collapse, create, move, indent, outdent, delete) are tracked locally until you explicitly Save
   - Save / Discard buttons in toolbar (shown only when there are unsaved changes)
   - `Ctrl+S` / `Cmd+S` to save
   - Visual indicator (amber border) on edited nodes
@@ -31,8 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Removed auto-save: content and expand/collapse no longer persist immediately
-- Structural operations (create, indent, outdent, move, delete) still persist immediately
+- Removed auto-save: no operations persist until explicit Save
 - Use `Bun.randomUUIDv7()` instead of Node `crypto.randomUUID()` for node IDs
 - Move `architecture-framework-design.md` to `docs/`
 

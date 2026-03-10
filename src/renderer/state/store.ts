@@ -1,11 +1,23 @@
 import type { OutlineTreeNode, OutlineNode } from "../../shared/types";
 import { api } from "../rpc/api";
 import { saveStateManager } from "./saveStateManager";
+import {
+  addNodeToTree,
+  createTreeNode,
+  cloneTree,
+  moveNodeInTree,
+  removeNodeFromTree,
+} from "./treeUtils";
 
 export interface UnsavedNodeChange {
   content?: { current: string; original: string };
   is_expanded?: { current: boolean; original: boolean };
 }
+
+export type StructuralChange =
+  | { type: "create"; id: string; content: string; parent_id: string | null; insertAfterId: string | null }
+  | { type: "move"; id: string; new_parent_id: string | null; new_position: number }
+  | { type: "delete"; id: string; deleteChildren: boolean };
 
 export interface AppState {
   tree: OutlineTreeNode[];
@@ -25,6 +37,10 @@ export interface AppState {
 
 type Listener = (state: AppState) => void;
 
+function randomId(): string {
+  return crypto.randomUUID();
+}
+
 class Store {
   private state: AppState = {
     tree: [],
@@ -43,12 +59,14 @@ class Store {
   };
 
   private unsavedChanges = new Map<string, UnsavedNodeChange>();
+  private structuralChanges: StructuralChange[] = [];
+  private baselineTree: OutlineTreeNode[] = [];
   private listeners = new Set<Listener>();
   private loadVersion = 0;
 
   constructor() {
     saveStateManager.register("outliner", {
-      getChanges: () => this.unsavedChanges as Map<string, unknown>,
+      getChanges: () => this.getCombinedChanges(),
       save: () => this.persistChanges(),
       discard: () => this.revertChanges(),
     });
@@ -61,6 +79,13 @@ class Store {
         /* API not initialized yet (store loads before initApi) */
       }
     });
+  }
+
+  private getCombinedChanges(): Map<string, unknown> {
+    const m = new Map<string, unknown>();
+    for (const [k, v] of this.unsavedChanges) m.set(k, v);
+    this.structuralChanges.forEach((_, i) => m.set(`__struct:${i}`, true));
+    return m;
   }
 
   getState(): AppState {
@@ -84,15 +109,21 @@ class Store {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.unsavedChanges.size > 0;
+    return this.unsavedChanges.size > 0 || this.structuralChanges.length > 0;
   }
 
   getUnsavedCount(): number {
-    return this.unsavedChanges.size;
+    return this.unsavedChanges.size + this.structuralChanges.length;
   }
 
   isNodeUnsaved(nodeId: string): boolean {
-    return this.unsavedChanges.has(nodeId);
+    if (this.unsavedChanges.has(nodeId)) return true;
+    return this.structuralChanges.some(
+      (s) =>
+        (s.type === "create" && s.id === nodeId) ||
+        (s.type === "move" && s.id === nodeId) ||
+        (s.type === "delete" && s.id === nodeId)
+    );
   }
 
   private notifySaveState(): void {
@@ -114,11 +145,12 @@ class Store {
 
       if (result.success && result.data) {
         this.update({ tree: result.data });
+        this.baselineTree = cloneTree(result.data);
       } else if (!result.success) {
         this.update({ tree: [] });
+        this.baselineTree = [];
       }
 
-      // Load breadcrumbs in background — never block loading state on these
       if (parentId) {
         Promise.all([api.getAncestors(parentId), api.getNode(parentId)])
           .then(([ancestors, zoomedNode]) => {
@@ -135,6 +167,7 @@ class Store {
     } catch (err) {
       console.error("Failed to load tree:", err);
       this.update({ tree: [] });
+      this.baselineTree = [];
     } finally {
       if (showLoading && version === this.loadVersion) {
         this.update({ loading: false });
@@ -142,19 +175,35 @@ class Store {
     }
   }
 
-  async createNode(afterId: string | null, parentId: string | null): Promise<OutlineNode | null> {
-    const params = afterId
-      ? { content: "", parent_id: parentId, insertAfterId: afterId }
-      : { content: "", parent_id: parentId };
+  /** Local-only. No DB write until Save. */
+  createNode(afterId: string | null, parentId: string | null): OutlineNode | null {
+    const id = randomId();
+    const insertAfterId = afterId;
+    const parent_id = afterId
+      ? (this.findNodeInTree(afterId)?.parent_id ?? parentId)
+      : parentId;
 
-    const result = await api.createNode(params);
-    if (result.success) {
-      await this.loadTree(false);
-      this.update({ focusedNodeId: result.data!.id });
-      return result.data!;
-    }
-    console.error("createNode failed:", result.error);
-    return null;
+    const newNode = createTreeNode(id, "", parent_id, 0, 0);
+    const newTree = addNodeToTree(
+      this.state.tree,
+      newNode,
+      parent_id,
+      insertAfterId,
+      this.state.zoomedNodeId
+    );
+    if (newTree === this.state.tree) return null;
+
+    this.structuralChanges.push({
+      type: "create",
+      id,
+      content: "",
+      parent_id,
+      insertAfterId,
+    });
+    this.update({ tree: newTree });
+    this.update({ focusedNodeId: id });
+    this.notifySaveState();
+    return newNode;
   }
 
   /** Manual save only — updates in-memory tree and tracks change. No persistence until Save. */
@@ -216,40 +265,70 @@ class Store {
     this.notifySaveState();
   }
 
-  async indentNode(id: string): Promise<void> {
-    const result = await api.indentNode({ id });
-    if (result.success && result.data) {
-      await this.loadTree(false);
-      this.update({ focusedNodeId: id });
-    }
+  /** Local-only. No DB write until Save. */
+  indentNode(id: string): void {
+    const loc = this.findLocation(id);
+    if (!loc || loc.index === 0) return;
+    const prevSibling = loc.siblings[loc.index - 1];
+    const new_parent_id = prevSibling.id;
+    const new_position = prevSibling.children.length;
+    const newTree = moveNodeInTree(this.state.tree, id, new_parent_id, new_position);
+    this.structuralChanges.push({ type: "move", id, new_parent_id, new_position });
+    this.update({ tree: newTree });
+    this.update({ focusedNodeId: id });
+    this.notifySaveState();
   }
 
-  async outdentNode(id: string): Promise<void> {
-    const result = await api.outdentNode({ id });
-    if (result.success && result.data) {
-      await this.loadTree(false);
-      this.update({ focusedNodeId: id });
-    }
+  /** Local-only. No DB write until Save. */
+  outdentNode(id: string): void {
+    const loc = this.findLocation(id);
+    if (!loc || loc.node.parent_id === null) return;
+    const parent = this.findNodeInTree(loc.node.parent_id);
+    if (!parent) return;
+    const new_parent_id = parent.parent_id;
+    const new_position = parent.position + 1;
+    const newTree = moveNodeInTree(this.state.tree, id, new_parent_id, new_position);
+    this.structuralChanges.push({ type: "move", id, new_parent_id, new_position });
+    this.update({ tree: newTree });
+    this.update({ focusedNodeId: id });
+    this.notifySaveState();
   }
 
-  async deleteNode(id: string): Promise<void> {
-    const result = await api.deleteNode({ id, deleteChildren: true });
-    if (result.success) {
-      this.unsavedChanges.delete(id);
-      this.notifySaveState();
-      await this.loadTree(false);
-    }
+  /** Local-only. No DB write until Save. */
+  deleteNode(id: string): void {
+    const newTree = removeNodeFromTree(this.state.tree, id, true);
+    this.structuralChanges.push({ type: "delete", id, deleteChildren: true });
+    this.unsavedChanges.delete(id);
+    this.update({ tree: newTree });
+    this.update({ focusedNodeId: null });
+    this.notifySaveState();
   }
 
-  async moveNode(
-    id: string,
-    newParentId: string | null,
-    newPosition: number
-  ): Promise<void> {
-    const result = await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
-    if (result.success) {
-      await this.loadTree(false);
-    }
+  /** Local-only. No DB write until Save. */
+  moveNode(id: string, newParentId: string | null, newPosition: number): void {
+    const newTree = moveNodeInTree(this.state.tree, id, newParentId, newPosition);
+    this.structuralChanges.push({ type: "move", id, new_parent_id: newParentId, new_position: newPosition });
+    this.update({ tree: newTree });
+    this.notifySaveState();
+  }
+
+  private findLocation(id: string): {
+    node: OutlineTreeNode;
+    siblings: OutlineTreeNode[];
+    index: number;
+  } | null {
+    const visit = (
+      nodes: OutlineTreeNode[],
+      siblings: OutlineTreeNode[]
+    ): typeof result | null => {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) return { node: nodes[i], siblings, index: i };
+        const found = visit(nodes[i].children, nodes[i].children);
+        if (found) return found;
+      }
+      return null;
+    };
+    return visit(this.state.tree, this.state.tree);
   }
 
   async zoomIn(nodeId: string): Promise<void> {
@@ -278,7 +357,7 @@ class Store {
       return;
     }
 
-    this.update({ searchQuery: query, isSearching: true });
+    this.update({ searchQuery: query, searchResults: [], isSearching: true });
     const result = await api.search({ query, limit: 50 });
 
     if (result.success) {
@@ -291,7 +370,7 @@ class Store {
   }
 
   async saveAll(): Promise<{ success: boolean; savedCount: number; error?: string }> {
-    if (this.unsavedChanges.size === 0) {
+    if (this.unsavedChanges.size === 0 && this.structuralChanges.length === 0) {
       return { success: true, savedCount: 0 };
     }
 
@@ -316,14 +395,54 @@ class Store {
       }
     }
 
+    for (const op of this.structuralChanges) {
+      if (firstError) break;
+      if (op.type === "create") {
+        const node = this.findNodeInTree(op.id);
+        const content = node?.content ?? op.content;
+        const params = op.insertAfterId
+          ? { content, parent_id: op.parent_id, insertAfterId: op.insertAfterId, id: op.id }
+          : { content, parent_id: op.parent_id, id: op.id };
+        const result = await api.createNode(params);
+        if (result.success) {
+          savedCount++;
+        } else if (!firstError) {
+          firstError = result.error ?? "Unknown error";
+        }
+      } else if (op.type === "move") {
+        const result = await api.moveNode({
+          id: op.id,
+          new_parent_id: op.new_parent_id,
+          new_position: op.new_position,
+        });
+        if (result.success) {
+          savedCount++;
+        } else if (!firstError) {
+          firstError = result.error ?? "Unknown error";
+        }
+      } else if (op.type === "delete") {
+        const result = await api.deleteNode({ id: op.id, deleteChildren: op.deleteChildren });
+        if (result.success) {
+          savedCount++;
+        } else if (!firstError) {
+          firstError = result.error ?? "Unknown error";
+        }
+      }
+    }
+
+    if (!firstError) {
+      this.structuralChanges.length = 0;
+    }
+
     this.update({
       saveInProgress: false,
-      unsavedCount: this.unsavedChanges.size,
+      unsavedCount: this.unsavedChanges.size + this.structuralChanges.length,
       lastSaveSuccess: firstError ? null : savedCount,
       lastSaveError: firstError,
     });
     this.notifySaveState();
 
+    await this.loadTree(false);
     return {
       success: !firstError,
       savedCount,
@@ -332,23 +451,17 @@ class Store {
   }
 
   async discardAll(): Promise<{ success: boolean; discardedCount: number }> {
-    const count = this.unsavedChanges.size;
+    const count = this.unsavedChanges.size + this.structuralChanges.length;
     if (count === 0) {
       return { success: true, discardedCount: 0 };
     }
 
     this.update({ discardInProgress: true });
 
-    for (const [nodeId, change] of this.unsavedChanges) {
-      const restore: Partial<OutlineTreeNode> = {};
-      if (change.content) restore.content = change.content.original;
-      if (change.is_expanded !== undefined) restore.is_expanded = change.is_expanded.original;
-      if (Object.keys(restore).length > 0) {
-        this.updateNodeInTree(nodeId, restore);
-      }
-    }
-
     this.unsavedChanges.clear();
+    this.structuralChanges.length = 0;
+    this.update({ tree: cloneTree(this.baselineTree) });
+
     this.update({
       discardInProgress: false,
       unsavedCount: 0,
@@ -392,10 +505,7 @@ class Store {
     return null;
   }
 
-  private updateNodeInTree(
-    id: string,
-    updates: Partial<OutlineTreeNode>
-  ): void {
+  private updateNodeInTree(id: string, updates: Partial<OutlineTreeNode>): void {
     const updatedTree = this.deepUpdateTree(this.state.tree, id, updates);
     this.update({ tree: updatedTree });
   }

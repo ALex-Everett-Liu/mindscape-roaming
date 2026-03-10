@@ -176,7 +176,7 @@ Defined in `shared/rpc-schema.ts` as `OutlinerRPCType`. Main handlers are built 
 
 ### Manual Save
 
-- **Content and expand/collapse** are **manual save only**: edits update in-memory state and `unsavedChanges` Map; persistence happens only when the user clicks Save (or Ctrl+S).
+- **All edits** are **manual save only**: content, expand/collapse, create, move, indent, outdent, and delete update in-memory state; persistence happens only when the user clicks Save (or Ctrl+S). The database file remains unchanged until the user explicitly approves.
 - ** Structural ops** (create, delete, indent, outdent, move) persist immediately.
 - **SaveStateManager** (`saveStateManager.ts`): Registers sources (e.g. `"outliner"`) with `getChanges`, `save`, `discard`. Used for Save All, Discard All, and quit-warning coordination.
 

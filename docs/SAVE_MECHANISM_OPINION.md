@@ -2,6 +2,8 @@
 
 This document compares Mindscape-Roaming's data-saving implementation with the analysis and design guide from another project (Luhmann-Roam). The reference doc emphasizes **manual save with explicit Save/Discard**, change tracking, and user control.
 
+> **Update:** Full manual-save control has been implemented. All operations (content, expand/collapse, create, move, indent, outdent, delete) are now local-only until the user explicitly Saves. See CHANGELOG and `docs/architecture.md`.
+
 ---
 
 ## 1. Summary: Is the Reference Implementation Better?
