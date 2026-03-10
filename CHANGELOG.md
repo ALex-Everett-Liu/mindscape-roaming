@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-03-10
+
+### Added
+
+- **Manual save mode**: All content and expand/collapse edits are tracked locally until you explicitly Save
+  - Save / Discard buttons in toolbar (shown only when there are unsaved changes)
+  - `Ctrl+S` / `Cmd+S` to save
+  - Visual indicator (amber border) on edited nodes
+  - Success and error feedback after save
+- **Close warning**: App prompts "Quit anyway?" when closing with unsaved changes
+- **SaveStateManager**: Shared module for future plugins to register their own save sources
+- Error handling for failed saves (alert + no clear of unsaved state)
+
+### Changed
+
+- Removed auto-save: content and expand/collapse no longer persist immediately
+- Structural operations (create, indent, outdent, move, delete) still persist immediately
+
 ## [0.1.1] - 2025-03-10
 
 ### Added
@@ -58,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/releases/tag/v0.1.0

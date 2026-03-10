@@ -16,13 +16,23 @@ for (const plugin of mainPlugins) {
 
 await pluginManager.loadAll();
 
+// ─── Unsaved state (for close warning) ─────────────────
+let hasUnsavedChanges = false;
+let userConfirmedQuitDespiteUnsaved = false;
+
 // ─── Build RPC from Plugins ───────────────────────────
 const rpcHandlers = pluginManager.buildRpcHandlers();
 
 const outlinerRPC = BrowserView.defineRPC({
   maxRequestTime: 5000,
   handlers: {
-    requests: rpcHandlers.requests as any,
+    requests: {
+      ...(rpcHandlers.requests as Record<string, unknown>),
+      reportUnsavedState: (params: unknown) => {
+        hasUnsavedChanges = (params as { hasUnsaved: boolean }).hasUnsaved;
+        return Promise.resolve();
+      },
+    },
   },
 });
 
@@ -35,6 +45,25 @@ const mainWindow = new BrowserWindow({
 });
 
 // ─── App Lifecycle ────────────────────────────────────
+Electrobun.events.on("before-quit", (event: { response?: { allow: boolean } }) => {
+  if (hasUnsavedChanges && !userConfirmedQuitDespiteUnsaved) {
+    event.response = { allow: false };
+    Electrobun.Utils.showMessageBox({
+      type: "question",
+      title: "Unsaved Changes",
+      message: "You have unsaved changes. Quit anyway?",
+      buttons: ["Quit", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        userConfirmedQuitDespiteUnsaved = true;
+        Electrobun.Utils.quit();
+      }
+    });
+  }
+});
+
 Electrobun.events.on("will-quit", async () => {
   await pluginManager.shutdown();
   closeDatabase();

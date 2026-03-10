@@ -100,9 +100,11 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
     [node.id]
   );
 
+  const isUnsaved = store.isNodeUnsaved(node.id);
+
   return html`
     <li
-      class="outline-node ${isFocused ? "focused" : ""}"
+      class="outline-node ${isFocused ? "focused" : ""} ${isUnsaved ? "unsaved" : ""}"
       role="treeitem"
       aria-expanded=${hasChildren ? node.is_expanded : undefined}
       draggable=${true}

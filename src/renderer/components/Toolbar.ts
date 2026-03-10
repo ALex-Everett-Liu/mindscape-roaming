@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "preact/hooks";
+import { useRef, useCallback, useEffect, useState } from "preact/hooks";
 import { html } from "htm/preact";
 import { store } from "../state/store";
 
@@ -10,6 +10,11 @@ interface Props {
 
 export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState(store.getState());
+
+  useEffect(() => {
+    return store.subscribe(setState);
+  }, []);
 
   const handleCreateRoot = useCallback(() => {
     store.createNode(null, store.getState().zoomedNodeId);
@@ -24,6 +29,22 @@ export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
     },
     [onSearch]
   );
+
+  const handleSave = useCallback(async () => {
+    const result = await store.saveAll();
+    if (result.error) {
+      alert(`Failed to save: ${result.error}`);
+    }
+    setTimeout(() => store.clearSaveFeedback(), 3000);
+  }, []);
+
+  const handleDiscard = useCallback(async () => {
+    await store.discardAll();
+    setTimeout(() => store.clearSaveFeedback(), 3000);
+  }, []);
+
+  const hasUnsaved = state.unsavedCount > 0;
+  const isBusy = state.saveInProgress || state.discardInProgress;
 
   return html`
     <header class="toolbar">
@@ -42,6 +63,32 @@ export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
         />
       </div>
       <div class="toolbar-right">
+        ${hasUnsaved &&
+        html`
+          <div class="save-discard-group">
+            <button
+              class="btn btn-save"
+              onClick=${handleSave}
+              disabled=${isBusy}
+              title="Save all changes"
+            >
+              ${state.saveInProgress ? "Saving..." : `Save (${state.unsavedCount})`}
+            </button>
+            <button
+              class="btn btn-discard"
+              onClick=${handleDiscard}
+              disabled=${isBusy}
+              title="Discard all changes"
+            >
+              ${state.discardInProgress ? "Discarding..." : "Discard"}
+            </button>
+          </div>
+        `}
+        ${state.lastSaveSuccess !== null &&
+        !hasUnsaved &&
+        html`<span class="save-feedback success">Saved ${state.lastSaveSuccess}!</span>`}
+        ${state.lastSaveError && !hasUnsaved &&
+        html`<span class="save-feedback error">Save failed</span>`}
         ${onOpenSettings &&
         html`
           <button

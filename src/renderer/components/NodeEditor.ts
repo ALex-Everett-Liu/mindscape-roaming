@@ -10,15 +10,15 @@ interface Props {
   onFocus: () => void;
 }
 
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
+function debounce<A extends unknown[], R>(
+  fn: (...args: A) => R,
   ms: number
-): T {
+): (...args: A) => void {
   let timer: ReturnType<typeof setTimeout>;
-  return ((...args: unknown[]) => {
+  return (...args: A) => {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
-  }) as T;
+  };
 }
 
 export function NodeEditor({

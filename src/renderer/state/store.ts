@@ -1,5 +1,11 @@
 import type { OutlineTreeNode, OutlineNode } from "../../shared/types";
 import { api } from "../rpc/api";
+import { saveStateManager } from "./saveStateManager";
+
+export interface UnsavedNodeChange {
+  content?: { current: string; original: string };
+  is_expanded?: { current: boolean; original: boolean };
+}
 
 export interface AppState {
   tree: OutlineTreeNode[];
@@ -10,6 +16,11 @@ export interface AppState {
   searchResults: OutlineNode[];
   isSearching: boolean;
   loading: boolean;
+  unsavedCount: number;
+  saveInProgress: boolean;
+  discardInProgress: boolean;
+  lastSaveError: string | null;
+  lastSaveSuccess: number | null;
 }
 
 type Listener = (state: AppState) => void;
@@ -24,9 +35,32 @@ class Store {
     searchResults: [],
     isSearching: false,
     loading: true,
+    unsavedCount: 0,
+    saveInProgress: false,
+    discardInProgress: false,
+    lastSaveError: null,
+    lastSaveSuccess: null,
   };
 
-  private listeners: Set<Listener> = new Set();
+  private unsavedChanges = new Map<string, UnsavedNodeChange>();
+  private listeners = new Set<Listener>();
+
+  constructor() {
+    saveStateManager.register("outliner", {
+      getChanges: () => this.unsavedChanges as Map<string, unknown>,
+      save: () => this.persistChanges(),
+      discard: () => this.revertChanges(),
+    });
+
+    saveStateManager.onStateChange((hasUnsaved, count) => {
+      this.update({ unsavedCount: count });
+      try {
+        api.reportUnsavedState?.(hasUnsaved);
+      } catch {
+        /* API not initialized yet (store loads before initApi) */
+      }
+    });
+  }
 
   getState(): AppState {
     return this.state;
@@ -46,6 +80,22 @@ class Store {
   private update(partial: Partial<AppState>): void {
     this.state = { ...this.state, ...partial };
     this.emit();
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.unsavedChanges.size > 0;
+  }
+
+  getUnsavedCount(): number {
+    return this.unsavedChanges.size;
+  }
+
+  isNodeUnsaved(nodeId: string): boolean {
+    return this.unsavedChanges.has(nodeId);
+  }
+
+  private notifySaveState(): void {
+    saveStateManager.notifyListeners();
   }
 
   async loadTree(): Promise<void> {
@@ -98,18 +148,63 @@ class Store {
     return null;
   }
 
-  async updateContent(id: string, content: string): Promise<void> {
-    await api.updateNode({ id, content });
+  /** Manual save only — updates in-memory tree and tracks change. No persistence until Save. */
+  updateContent(id: string, content: string): void {
+    const node = this.findNodeInTree(id);
+    if (!node) return;
+
+    const existing = this.unsavedChanges.get(id);
+    const originalContent = existing?.content?.original ?? node.content;
+
+    if (content === originalContent) {
+      if (existing) {
+        const updated = { ...existing };
+        delete updated.content;
+        if (Object.keys(updated).length === 0) {
+          this.unsavedChanges.delete(id);
+        } else {
+          this.unsavedChanges.set(id, updated);
+        }
+      }
+    } else {
+      this.unsavedChanges.set(id, {
+        ...existing,
+        content: { current: content, original: originalContent },
+      });
+    }
+
     this.updateNodeInTree(id, { content });
+    this.notifySaveState();
   }
 
-  async toggleExpanded(id: string): Promise<void> {
+  /** Manual save only — tracks expand/collapse. No persistence until Save. */
+  toggleExpanded(id: string): void {
     const node = this.findNodeInTree(id);
     if (!node) return;
 
     const newExpanded = !node.is_expanded;
-    await api.updateNode({ id, is_expanded: newExpanded });
+    const existing = this.unsavedChanges.get(id);
+    const originalExpanded = existing?.is_expanded?.original ?? node.is_expanded;
+
+    if (newExpanded === originalExpanded) {
+      if (existing) {
+        const updated = { ...existing };
+        delete updated.is_expanded;
+        if (Object.keys(updated).length === 0) {
+          this.unsavedChanges.delete(id);
+        } else {
+          this.unsavedChanges.set(id, updated);
+        }
+      }
+    } else {
+      this.unsavedChanges.set(id, {
+        ...existing,
+        is_expanded: { current: newExpanded, original: originalExpanded },
+      });
+    }
+
     this.updateNodeInTree(id, { is_expanded: newExpanded });
+    this.notifySaveState();
   }
 
   async indentNode(id: string): Promise<void> {
@@ -129,8 +224,12 @@ class Store {
   }
 
   async deleteNode(id: string): Promise<void> {
-    await api.deleteNode({ id, deleteChildren: true });
-    await this.loadTree();
+    const result = await api.deleteNode({ id, deleteChildren: true });
+    if (result.success) {
+      this.unsavedChanges.delete(id);
+      this.notifySaveState();
+      await this.loadTree();
+    }
   }
 
   async moveNode(
@@ -138,8 +237,10 @@ class Store {
     newParentId: string | null,
     newPosition: number
   ): Promise<void> {
-    await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
-    await this.loadTree();
+    const result = await api.moveNode({ id, new_parent_id: newParentId, new_position: newPosition });
+    if (result.success) {
+      await this.loadTree();
+    }
   }
 
   async zoomIn(nodeId: string): Promise<void> {
@@ -178,6 +279,96 @@ class Store {
 
   setFocusedNode(id: string | null): void {
     this.update({ focusedNodeId: id });
+  }
+
+  async saveAll(): Promise<{ success: boolean; savedCount: number; error?: string }> {
+    if (this.unsavedChanges.size === 0) {
+      return { success: true, savedCount: 0 };
+    }
+
+    this.update({ saveInProgress: true, lastSaveError: null, lastSaveSuccess: null });
+
+    let savedCount = 0;
+    let firstError: string | null = null;
+
+    for (const [nodeId, change] of this.unsavedChanges) {
+      const updates: { content?: string; is_expanded?: boolean } = {};
+      if (change.content) updates.content = change.content.current;
+      if (change.is_expanded !== undefined) updates.is_expanded = change.is_expanded.current;
+
+      if (Object.keys(updates).length === 0) continue;
+
+      const result = await api.updateNode({ id: nodeId, ...updates });
+      if (result.success) {
+        this.unsavedChanges.delete(nodeId);
+        savedCount++;
+      } else if (!firstError) {
+        firstError = result.error ?? "Unknown error";
+      }
+    }
+
+    this.update({
+      saveInProgress: false,
+      unsavedCount: this.unsavedChanges.size,
+      lastSaveSuccess: firstError ? null : savedCount,
+      lastSaveError: firstError,
+    });
+    this.notifySaveState();
+
+    return {
+      success: !firstError,
+      savedCount,
+      error: firstError ?? undefined,
+    };
+  }
+
+  async discardAll(): Promise<{ success: boolean; discardedCount: number }> {
+    const count = this.unsavedChanges.size;
+    if (count === 0) {
+      return { success: true, discardedCount: 0 };
+    }
+
+    this.update({ discardInProgress: true });
+
+    for (const [nodeId, change] of this.unsavedChanges) {
+      const restore: Partial<OutlineTreeNode> = {};
+      if (change.content) restore.content = change.content.original;
+      if (change.is_expanded !== undefined) restore.is_expanded = change.is_expanded.original;
+      if (Object.keys(restore).length > 0) {
+        this.updateNodeInTree(nodeId, restore);
+      }
+    }
+
+    this.unsavedChanges.clear();
+    this.update({
+      discardInProgress: false,
+      unsavedCount: 0,
+      lastSaveError: null,
+      lastSaveSuccess: null,
+    });
+    this.notifySaveState();
+
+    await this.loadTree();
+    return { success: true, discardedCount: count };
+  }
+
+  clearSaveFeedback(): void {
+    this.update({ lastSaveError: null, lastSaveSuccess: null });
+  }
+
+  private async persistChanges(): Promise<{
+    success: boolean;
+    savedCount: number;
+    error?: string;
+  }> {
+    return this.saveAll();
+  }
+
+  private async revertChanges(): Promise<{
+    success: boolean;
+    discardedCount: number;
+  }> {
+    return this.discardAll();
   }
 
   private findNodeInTree(

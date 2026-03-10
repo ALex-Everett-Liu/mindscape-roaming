@@ -14,6 +14,7 @@ import type {
 } from "../../shared/types";
 
 type OutlinerRpcRequest = {
+  reportUnsavedState?: (params: { hasUnsaved: boolean }) => Promise<void>;
   getFullTree: (params?: Record<string, never>) => Promise<RpcResult<OutlineTreeNode[]>>;
   getSubtree: (params: GetSubtreeParams) => Promise<RpcResult<OutlineTreeNode[]>>;
   getNode: (params: { id: string }) => Promise<RpcResult<OutlineNode>>;
@@ -45,6 +46,8 @@ function getRpc(): OutlinerRpcRequest {
 }
 
 export const api = {
+  reportUnsavedState: (hasUnsaved: boolean) =>
+    getRpc().reportUnsavedState?.({ hasUnsaved }) ?? Promise.resolve(),
   getFullTree: () => getRpc().getFullTree({}),
   getSubtree: (params: GetSubtreeParams) => getRpc().getSubtree(params),
   getNode: (id: string) => getRpc().getNode({ id }),

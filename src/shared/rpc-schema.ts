@@ -19,6 +19,10 @@ import type {
 export type OutlinerRPCType = {
   bun: {
     requests: {
+      reportUnsavedState: {
+        params: { hasUnsaved: boolean };
+        response: Promise<void>;
+      };
       getFullTree: { params: Record<string, never>; response: RpcResult<OutlineTreeNode[]> };
       getSubtree: {
         params: GetSubtreeParams;
@@ -74,8 +78,10 @@ export type OutlinerRPCType = {
         response: RpcResult<boolean>;
       };
     };
+    messages: Record<string, unknown>;
   };
   webview: {
     requests: Record<string, never>;
+    messages: Record<string, unknown>;
   };
 };
