@@ -114,8 +114,10 @@ class Store {
       ]);
 
       if (result.success && result.data) {
+        console.log("[loadTree] Got", result.data.length, "root nodes");
         this.update({ tree: result.data });
       } else if (!result.success) {
+        console.warn("[loadTree] getSubtree failed:", result);
         this.update({ tree: [] });
       }
 
@@ -280,32 +282,50 @@ class Store {
 
   async discardAll(): Promise<{ success: boolean; discardedCount: number }> {
     const count = this.modifiedNodeIds.size;
+    console.log("[Discard] discardAll called, modifiedCount:", count);
     if (count === 0) {
+      console.log("[Discard] No changes, skipping");
       return { success: true, discardedCount: 0 };
     }
 
     this.update({ discardInProgress: true });
+    console.log("[Discard] Calling api.restoreFromBackup()...");
 
-    const result = await api.restoreFromBackup();
-    const ok = (result as { success?: boolean }).success === true;
+    try {
+      const result = await api.restoreFromBackup();
+      console.log("[Discard] RPC returned:", JSON.stringify(result));
+      const ok = (result as { success?: boolean }).success === true;
 
-    this.clearModified();
-    this.update({
-      discardInProgress: false,
-      unsavedCount: 0,
-      lastSaveError: null,
-      lastSaveSuccess: null,
-    });
-    saveStateManager.notifyListeners();
+      this.update({ discardInProgress: false });
 
-    if (ok) {
-      await this.loadTree(false);
-    } else {
-      const err = (result as { error?: string }).error;
-      alert(`Discard failed: ${err ?? "Unknown error"}`);
+      if (ok) {
+        console.log("[Discard] Success, clearing modified and reloading tree");
+        this.clearModified();
+        this.update({ unsavedCount: 0, lastSaveError: null, lastSaveSuccess: null });
+        saveStateManager.notifyListeners();
+        // Force full reload: clear tree, show loading, yield for main to settle, fetch from restored DB
+        this.update({ tree: [], loading: true });
+        await new Promise((r) => setTimeout(r, 100));
+        await this.loadTree(true);
+        console.log("[Discard] Done");
+        return { success: true, discardedCount: count };
+      } else {
+        const err = (result as { error?: string }).error;
+        console.error("[Discard] Main returned success=false:", err);
+        saveStateManager.notifyListeners();
+        alert(`Discard failed: ${err ?? "Unknown error"}`);
+        return { success: false, discardedCount: 0 };
+      }
+    } catch (e) {
+      console.error("[Discard] Exception:", e);
+      this.update({
+        discardInProgress: false,
+        lastSaveError: (e as Error)?.message ?? "Discard failed",
+      });
+      saveStateManager.notifyListeners();
+      alert(`Discard failed: ${(e as Error)?.message ?? "Unknown error"}`);
+      return { success: false, discardedCount: 0 };
     }
-
-    return { success: ok, discardedCount: count };
   }
 
   clearSaveFeedback(): void {

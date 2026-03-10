@@ -42,11 +42,23 @@ const requests: Record<string, (params: unknown) => Promise<unknown>> = {
     return Promise.resolve({ success: true });
   },
   restoreFromBackup: async () => {
+    console.log("[Outliner] restoreFromBackup RPC handler called");
+    await pluginManager.unloadAllForRestore();
+    console.log("[Outliner] Plugins unloaded, calling restoreFromBackup()");
     const result = restoreFromBackup();
+    console.log("[Outliner] restoreFromBackup() returned:", result);
     if (result.success) {
-      await pluginManager.reloadWithNewDatabase(getDatabase());
+      try {
+        console.log("[Outliner] Reloading plugins with new DB");
+        await pluginManager.reloadWithNewDatabase(getDatabase());
+        console.log("[Outliner] Plugin reload done");
+      } catch (e) {
+        console.error("[Outliner] Plugin reload after restore failed:", e);
+        return { success: false, error: String(e) };
+      }
     }
-    return Promise.resolve({ success: result.success, error: result.error });
+    console.log("[Outliner] Returning:", { success: result.success, error: result.error });
+    return { success: result.success, error: result.error };
   },
   hasBackup: () => Promise.resolve({ success: true, data: hasBackup() }),
 };
@@ -57,7 +69,7 @@ for (const name of mutatingOps) {
 }
 
 const outlinerRPC = BrowserView.defineRPC({
-  maxRequestTime: 5000,
+  maxRequestTime: 10000,
   handlers: { requests },
 });
 

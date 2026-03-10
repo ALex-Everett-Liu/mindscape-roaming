@@ -39,6 +39,7 @@ export function Toolbar({ searchQuery, onSearch, onOpenSettings }: Props) {
   }, []);
 
   const handleDiscard = useCallback(async () => {
+    console.log("[Discard] Toolbar handleDiscard clicked");
     await store.discardAll();
     setTimeout(() => store.clearSaveFeedback(), 3000);
   }, []);

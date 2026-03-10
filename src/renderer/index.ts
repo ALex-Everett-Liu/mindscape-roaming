@@ -8,6 +8,7 @@ import { store } from "./state/store";
 
 // Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<OutlinerRPCType>({
+  maxRequestTime: 15000,
   handlers: {
     requests: {},
     messages: {},

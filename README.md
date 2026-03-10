@@ -44,6 +44,7 @@ bun run build
   - `Alt+↑` / `Alt+↓` — Move node up/down
 - **Drag & drop** — Reorder and nest nodes
 - **SQLite storage** — Data saved in `./data/outliner.db` (or `ELECTROBUN_APP_DATA`)
+- **Manual save mode** — Edits write directly to DB; backup created on first edit. Save commits; Discard restores from backup. `Ctrl+S` to save.
 
 ## Project Structure
 

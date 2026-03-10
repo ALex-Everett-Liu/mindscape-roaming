@@ -16,11 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lightweight tracking: `Set<nodeId>` for UI (Save/Discard buttons, amber borders, close warning)
   - Save = delete backup (commit). Discard = overwrite db with backup, reload
   - `ensureBackup`, `restoreFromBackup`, `commitSave` in DB layer; plugin reload after restore
+- Debug logging for Discard flow (renderer + main)
 
 ### Changed
 
 - Simplified save mechanism: removed in-memory change tracking, treeUtils, path-copying
 - Reverted to direct API writes for create, move, indent, outdent, delete, content, expand
+- **SQLite journal mode**: WAL → TRUNCATE (single file only; avoids EBUSY on Windows Discard)
+
+### Fixed
+
+- **Discard not working**: Restore now reliably updates UI
+  - Unload plugins before DB close to release refs
+  - TRUNCATE mode eliminates -wal/-shm file locks on Windows
+  - Force full tree reload (clear + loading state) after restore
+  - Increased RPC timeouts for Discard (renderer 15s, main 10s)
+  - Proper error handling; clears "Discarding..." state on failure
 
 ## [0.1.3] - 2025-03-10
 

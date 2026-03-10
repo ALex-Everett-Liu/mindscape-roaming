@@ -38,14 +38,18 @@ export class PluginManager {
     this.loadEnabledState();
   }
 
-  /** Swap database after restore. Unloads and reloads all plugins with new db. */
-  async reloadWithNewDatabase(newDb: Database): Promise<void> {
+  /** Unload all plugins (for restore). Releases DB refs before close. Does not reload. */
+  async unloadAllForRestore(): Promise<void> {
     for (const pluginId of [...this.loadedPlugins].reverse()) {
       const plugin = this.plugins.get(pluginId);
       if (plugin?.onUnload) await plugin.onUnload();
       this.rpcRegistry.removeByPlugin(pluginId);
       this.loadedPlugins.delete(pluginId);
     }
+  }
+
+  /** Swap database after restore. Unloads and reloads all plugins with new db. */
+  async reloadWithNewDatabase(newDb: Database): Promise<void> {
     this.db = newDb;
     this.initDb(newDb);
     const resolution = resolveDependencies(this.manifests, this.enabledPlugins);

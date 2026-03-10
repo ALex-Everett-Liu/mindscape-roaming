@@ -174,10 +174,13 @@ Defined in `shared/rpc-schema.ts` as `OutlinerRPCType`. Main handlers are built 
 - **Store** (`store.ts`): Single central store. Holds tree, zoom, breadcrumbs, search, focus, loading, unsaved count.
 - **Subscribe/update**: Components subscribe via `store.subscribe()` and call `store.method()` for actions.
 
-### Manual Save
+### Manual Save (Backup-on-Edit)
 
-- **All edits** are **manual save only**: content, expand/collapse, create, move, indent, outdent, and delete update in-memory state; persistence happens only when the user clicks Save (or Ctrl+S). The database file remains unchanged until the user explicitly approves.
-- ** Structural ops** (create, delete, indent, outdent, move) persist immediately.
+- **All edits** write directly to `outliner.db` via the API (content, expand/collapse, create, move, indent, outdent, delete).
+- **Backup-on-edit**: On the first mutating operation, `ensureBackup()` copies the DB to `outliner.db.backup`. This snapshot is used for Discard.
+- **Save** (`commitSave`): Deletes the backup. Changes are already in the DB; this commits the session.
+- **Discard** (`restoreFromBackup`): Overwrites the DB with the backup, closes/reopens the connection, and triggers a full reload.
+- **Lightweight tracking**: A `Set<nodeId>` tracks modified nodes for UI (Save/Discard buttons, amber borders, close warning). No in-memory tree copy or path-copying.
 - **SaveStateManager** (`saveStateManager.ts`): Registers sources (e.g. `"outliner"`) with `getChanges`, `save`, `discard`. Used for Save All, Discard All, and quit-warning coordination.
 
 ### Quit Warning

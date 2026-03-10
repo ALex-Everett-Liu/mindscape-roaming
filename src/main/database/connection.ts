@@ -31,7 +31,7 @@ export function getDatabase(): Database {
   db = new Database(dbPath, { create: true });
   console.log("[Outliner] Database:", dbPath);
 
-  db.run("PRAGMA journal_mode = WAL");
+  db.run("PRAGMA journal_mode = TRUNCATE"); // Single file only; no -wal/-shm (avoids EBUSY on Discard)
   db.run("PRAGMA foreign_keys = ON");
   db.run("PRAGMA synchronous = NORMAL");
   db.run("PRAGMA cache_size = -64000");
@@ -55,25 +55,39 @@ export function ensureBackup(): void {
   if (!existsSync(dbPath)) return;
 
   if (!db) return;
-  db.run("PRAGMA wal_checkpoint(TRUNCATE)");
   copyFileSync(dbPath, backupPath);
   console.log("[Outliner] Backup created:", backupPath);
 }
 
-/** Restore from backup (Discard). Closes DB, overwrites db file, reopens. Caller must reload plugins. */
+/** Restore from backup (Discard). Closes DB, overwrites db file, reopens. Single file (TRUNCATE mode). */
 export function restoreFromBackup(): { success: boolean; error?: string } {
   const backupPath = getBackupPath();
   const dbPath = getDbPath();
+  console.log("[DB] restoreFromBackup: backupPath=", backupPath, "dbPath=", dbPath);
   if (!existsSync(backupPath)) {
+    console.error("[DB] restoreFromBackup: backup not found");
     return { success: false, error: "No backup to restore from" };
   }
 
   try {
+    console.log("[DB] Closing database");
     closeDatabase();
+    console.log("[DB] Copying backup to db");
     copyFileSync(backupPath, dbPath);
+    // Remove stale -wal/-shm from any prior WAL mode (no locks with TRUNCATE)
+    for (const suffix of ["-wal", "-shm"]) {
+      const p = dbPath + suffix;
+      if (existsSync(p)) {
+        console.log("[DB] Removing stale", suffix);
+        unlinkSync(p);
+      }
+    }
+    console.log("[DB] Reopening database");
     getDatabase();
+    console.log("[DB] restoreFromBackup: success");
     return { success: true };
   } catch (e) {
+    console.error("[DB] restoreFromBackup failed:", e);
     getDatabase();
     return { success: false, error: String(e) };
   }
