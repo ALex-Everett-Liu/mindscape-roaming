@@ -55,6 +55,7 @@ src/
 │   │   └── seed.ts
 │   ├── plugin-system/
 │   │   ├── PluginManager.ts     # Load, enable/disable, dependency resolve
+│   │   ├── loadPlugins.ts       # Built-in plugin registry
 │   │   ├── PluginContext.ts    # API exposed to plugins (db, events, RPC)
 │   │   ├── PluginManifest.ts   # Manifest types
 │   │   ├── RpcHandlerRegistry.ts
@@ -64,8 +65,6 @@ src/
 │   │   ├── core-node-ops/       # CRUD, tree queries (essential)
 │   │   ├── core-fts-search/     # FTS5 search
 │   │   └── core-settings/       # Plugin enable/disable
-│   └── skeletons/
-│       └── loadPlugins.ts       # Skeleton-aware plugin loader
 │
 ├── renderer/                    # BrowserView frontend
 │   ├── index.ts                 # Electroview init, App render
@@ -95,7 +94,7 @@ src/
 ### Design
 
 - **Main-process only**: Plugins run in the Bun process and register RPC handlers.
-- **Skeleton profiles**: `skeletons.config.ts` defines which plugins ship in `minimal`, `standard`, and `full` builds. Use `SKELETON=minimal bun run build` for a slimmer build.
+- **Enable/disable in Settings**: All built-in plugins are registered at startup. Users toggle each in the Settings UI.
 - **Dependency resolution**: `DependencyResolver` topologically sorts plugins so dependencies load first.
 - **Registration**: Each plugin implements `MainPlugin` with `manifest` and `onLoad(ctx)`. The context provides:
   - `getDatabase()` — SQLite
@@ -115,11 +114,11 @@ src/
 
 ```
 Main startup
-  → getDatabase(), runMigrations()
+  → getDatabase()
   → PluginManager constructed
-  → loadMainPlugins() (skeleton-aware)
+  → loadMainPlugins() — all built-in plugins
   → pluginManager.register() for each
-  → pluginManager.loadAll() — resolves deps, calls onLoad
+  → pluginManager.loadAll() — loads enabled plugins (dep order), calls onLoad
   → buildRpcHandlers() → BrowserView.defineRPC()
 ```
 

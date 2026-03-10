@@ -1,7 +1,7 @@
 import Electrobun, { BrowserWindow, BrowserView } from "electrobun/bun";
 import { getDatabase, closeDatabase, ensureBackup, restoreFromBackup, commitSave, hasBackup } from "./database/connection";
 import { PluginManager } from "./plugin-system/PluginManager";
-import { loadMainPlugins } from "./skeletons/loadPlugins";
+import { loadMainPlugins } from "./plugin-system/loadPlugins";
 
 // ─── Initialize Database ──────────────────────────────
 const db = getDatabase();

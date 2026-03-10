@@ -51,9 +51,8 @@ bun run build
 ```
 src/
 ├── main/                    # Bun main process (backend)
-│   ├── plugin-system/      # PluginManager, EventBus, RPC registry
+│   ├── plugin-system/      # PluginManager, loadPlugins, EventBus, RPC
 │   ├── plugins/            # Built-in plugins (core-node-ops, core-fts-search, core-settings)
-│   ├── skeletons/          # Skeleton-aware plugin loader
 │   ├── database/           # SQLite connection
 │   └── rpc/                # RPC types
 ├── renderer/               # BrowserView frontend (Preact + HTM)
@@ -69,6 +68,6 @@ src/
 The app follows the design from `architecture-framework-design.md`:
 
 - **Plugin system**: Core features (node ops, FTS search) are implemented as plugins. The app shell is minimal.
-- **Skeletons**: `skeletons.config.ts` defines profiles (minimal, standard, full). Use `SKELETON=minimal bun run build` for a slimmer build.
-- **Main process**: PluginManager loads plugins in dependency order; RPC handlers are registered by plugins.
+- **Settings**: All built-in plugins appear in Settings; users enable/disable each.
+- **Main process**: PluginManager loads enabled plugins in dependency order; RPC handlers are registered by plugins.
 - **Renderer**: Preact UI, local state, RPC client to main process.

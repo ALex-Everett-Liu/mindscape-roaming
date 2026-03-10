@@ -1,5 +1,4 @@
-import type { MainPlugin } from "../plugin-system/PluginManifest";
-import { getPluginsForSkeleton, getBuildSkeleton } from "../../../skeletons.config";
+import type { MainPlugin } from "./PluginManifest";
 
 // Static imports so bundler includes plugins (dynamic import fails in built output)
 import coreNodeOps from "../plugins/core-node-ops/index";
@@ -12,13 +11,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-settings": coreSettings,
 };
 
+/** Load all built-in plugins. Users enable/disable each in Settings. */
 export async function loadMainPlugins(): Promise<MainPlugin[]> {
-  const skeleton = getBuildSkeleton();
-  const ids = new Set(getPluginsForSkeleton(skeleton));
-
-  const plugins: MainPlugin[] = [];
-  for (const id of Object.keys(MAIN_PLUGINS)) {
-    if (ids.has(id)) plugins.push(MAIN_PLUGINS[id]);
-  }
-  return plugins;
+  return Object.values(MAIN_PLUGINS);
 }

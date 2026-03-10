@@ -180,6 +180,32 @@ Phase 4 (optional)
 
 ---
 
+## Future: Soft Delete–Enabled Features
+
+The database already supports soft delete (`is_deleted` on `outline_nodes`). Deleted nodes are hidden from the tree and search, but remain in the DB. This enables several features that are **not yet implemented**:
+
+| Goal | Current state | Future plan |
+|------|---------------|-------------|
+| **Undo/redo** | `core-undo-redo` in skeletons but plugin not implemented | Implement `core-undo-redo` plugin; undo delete by toggling `is_deleted` back to 0 |
+| **Trash / recently deleted** | No UI | Add trash view to browse soft-deleted nodes; optionally show "recently deleted" quick-access |
+| **Data recovery** | No restore API | Expose RPC to restore (set `is_deleted = 0`) for single node or subtree |
+| **Periodic hard-delete cleanup** | Soft-deleted rows persist forever | Background job (e.g., nightly) to `DELETE FROM outline_nodes WHERE is_deleted = 1 AND updated_at < ?`; configurable retention window |
+
+**Suggested dependency order:** (1) Restore API + trash UI, (2) `core-undo-redo` plugin, (3) optional hard-delete cleanup.
+
+---
+
+## Future: FTS5 Search Plugin Improvements
+
+FTS5 full-text search is implemented in the `core-fts-search` plugin (creates `outline_nodes_fts`, triggers, `search` RPC). All built-in plugins are in Settings; users enable/disable each. Remaining gaps:
+
+| Issue | Current state | Future plan |
+|-------|---------------|-------------|
+| **UI when disabled** | Search input always visible; calls fail with "Handler not registered" when plugin disabled | Conditionally show or disable search UI when `core-fts-search` is not loaded |
+| **Rebuild on first enable** | Enabling plugin on DB with existing nodes may leave FTS table out of sync | On plugin load, if FTS table empty but `outline_nodes` has rows, run `INSERT INTO outline_nodes_fts(outline_nodes_fts) VALUES('rebuild')` |
+
+---
+
 ## References
 
 - [SAVE_MECHANISM_SPEC](SAVE_MECHANISM_SPEC.md) — Current technical specification
