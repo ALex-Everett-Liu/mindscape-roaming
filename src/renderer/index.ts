@@ -18,14 +18,12 @@ const rpc = Electroview.defineRPC<OutlinerRPCType>({
 const electroview = new Electroview({ rpc });
 initApi(electroview.rpc!.request as Parameters<typeof initApi>[0]);
 
-// Load core-keyboard plugin (keyboard shortcuts)
-loadKeyboardPlugin().catch((err) => console.error("[core-keyboard] Failed to load:", err));
-
 // Render app immediately (shows empty/loading state)
 render(html`<${App} />`, document.getElementById("app")!);
 
-// Defer data load - give WebSocket time to connect to main process
+// Defer data load and plugin load - give WebSocket time to connect to main process
 setTimeout(async () => {
   await store.loadTree();
   await store.refreshSearchAvailability();
+  await loadKeyboardPlugin().catch((err) => console.error("[core-keyboard] Failed to load:", err));
 }, 300);

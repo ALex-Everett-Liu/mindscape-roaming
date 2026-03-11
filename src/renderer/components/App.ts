@@ -5,6 +5,7 @@ import { Toolbar } from "./Toolbar";
 import { Breadcrumb } from "./Breadcrumb";
 import { OutlineTree } from "./OutlineTree";
 import { PluginSettingsView } from "./PluginSettingsView";
+import { syncKeyboardPluginState } from "../plugin-system/loadKeyboardPlugin";
 
 export function App() {
   const [state, setState] = useState<AppState>(store.getState());
@@ -77,9 +78,10 @@ export function App() {
 
       ${showSettings &&
       html`<${PluginSettingsView}
-        onClose=${() => {
+        onClose=${async () => {
           setShowSettings(false);
-          store.refreshSearchAvailability();
+          await store.refreshSearchAvailability();
+          await syncKeyboardPluginState();
         }}
       />`}
     </div>

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved keyboard handling from OutlineNode/NodeEditor into core-keyboard plugin (document-level keydown)
 - Toolbar listens for `focus-search` custom event to focus search input on Ctrl+F
 
+### Fixed
+
+- **core-keyboard disable had no effect**: Disabling the plugin now actually unloads it—shortcuts stop working. Sync on Settings close; load only when enabled.
+
 ## [0.1.5] - 2025-03-11
 
 ### Added
