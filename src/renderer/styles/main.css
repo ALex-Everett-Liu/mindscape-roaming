@@ -359,15 +359,7 @@ body {
   font-size: 12px;
 }
 
-/* ─── Drag and Drop ─────────────────────────────────── */
-.outline-node[draggable="true"] {
-  cursor: grab;
-}
-
-.outline-node[draggable="true"]:active {
-  cursor: grabbing;
-  opacity: 0.5;
-}
+/* Drag-and-drop styles are injected by core-drag-drop plugin when enabled. */
 
 /* ─── Plugin Settings Modal ────────────────────────── */
 .settings-overlay {

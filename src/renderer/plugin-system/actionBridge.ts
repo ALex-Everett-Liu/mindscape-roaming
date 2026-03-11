@@ -76,6 +76,17 @@ export function setupActionBridge(eventBus: EventBus, store: ActionBridgeStore):
   );
 
   unsubs.push(
+    eventBus.on("action:moveNodeTo", async (nodeId: unknown, targetParentId: unknown) => {
+      const id = String(nodeId);
+      const targetId = String(targetParentId);
+      if (id === targetId) return;
+      const nodes = store.getState().tree ?? [];
+      if (isDescendantOf(nodes, targetId, id)) return; // Prevent cycle
+      await store.moveNode(id, targetId, 0);
+    })
+  );
+
+  unsubs.push(
     eventBus.on("action:focusPrevious", (nodeId: unknown) => {
       store.focusPrevious(String(nodeId));
     })
@@ -112,4 +123,21 @@ function getSiblings(nodes: OutlineTreeNode[], nodeId: string): OutlineTreeNode[
     }
   }
   return null;
+}
+
+function isDescendantOf(
+  nodes: OutlineTreeNode[],
+  nodeId: string,
+  ancestorId: string
+): boolean {
+  const ancestor = findNode(nodes, ancestorId);
+  if (!ancestor || ancestor.children.length === 0) return false;
+  const visit = (list: OutlineTreeNode[]): boolean => {
+    for (const n of list) {
+      if (n.id === nodeId) return true;
+      if (visit(n.children)) return true;
+    }
+    return false;
+  };
+  return visit(ancestor.children);
 }

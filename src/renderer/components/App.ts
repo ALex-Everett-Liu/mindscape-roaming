@@ -5,14 +5,20 @@ import { Toolbar } from "./Toolbar";
 import { Breadcrumb } from "./Breadcrumb";
 import { OutlineTree } from "./OutlineTree";
 import { PluginSettingsView } from "./PluginSettingsView";
-import { syncKeyboardPluginState } from "../plugin-system/loadKeyboardPlugin";
+import { syncRendererPluginState } from "../plugin-system/loadRendererPlugins";
+import { onDragDropStateChange } from "../plugin-system/dragDropPluginState";
 
 export function App() {
   const [state, setState] = useState<AppState>(store.getState());
   const [showSettings, setShowSettings] = useState(false);
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     return store.subscribe(setState);
+  }, []);
+
+  useEffect(() => {
+    return onDragDropStateChange(() => forceUpdate((n) => n + 1));
   }, []);
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export function App() {
         onClose=${async () => {
           setShowSettings(false);
           await store.refreshSearchAvailability();
-          await syncKeyboardPluginState();
+          await syncRendererPluginState();
         }}
       />`}
     </div>

@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **core-drag-drop plugin**: Renderer plugin for drag-and-drop reparenting
+  - Drag a node onto another to make it the first child (reparent only)
+  - Reordering uses keyboard shortcuts (Alt+Shift+Up/Down)
+  - Cycle prevention (cannot drop onto a descendant)
+  - Enable/disable in Plugin Settings
+- **loadRendererPlugins**: Unified loader for core-keyboard and core-drag-drop; shared EventBus and action bridge
+- **action:moveNodeTo**: Action bridge handler for plugin-emitted reparent operations
 - **core-keyboard plugin**: Renderer plugin providing standard keyboard shortcuts for outliner operations
   - Enter — Create new sibling after current node
   - Tab / Shift+Tab — Indent / Outdent
@@ -27,8 +34,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Drag-and-drop fully plugin-controlled**: Removed native drag handlers from OutlineNode; core-drag-drop uses event delegation on tree container
+- **OutlineNode**: Uses `data-node-id` and `dragDropEnabled` from plugin state; draggable only when plugin enabled
+- **main.css**: Drag-drop styles moved into core-drag-drop plugin (injected when enabled)
 - Moved keyboard handling from OutlineNode/NodeEditor into core-keyboard plugin (document-level keydown)
 - Toolbar listens for `focus-search` custom event to focus search input on Ctrl+F
+
+### Removed
+
+- Native `handleDragStart`, `handleDragOver`, `handleDrop` from OutlineNode
+- Standalone `loadKeyboardPlugin.ts` (replaced by `loadRendererPlugins.ts`)
 
 ### Fixed
 

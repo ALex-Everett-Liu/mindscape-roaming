@@ -5,7 +5,7 @@ import type { OutlinerRPCType } from "../shared/rpc-schema";
 import { initApi } from "./rpc/api";
 import { App } from "./components/App";
 import { store } from "./state/store";
-import { loadKeyboardPlugin } from "./plugin-system/loadKeyboardPlugin";
+import { loadRendererPlugins } from "./plugin-system/loadRendererPlugins";
 
 // Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<OutlinerRPCType>({
@@ -25,5 +25,5 @@ render(html`<${App} />`, document.getElementById("app")!);
 setTimeout(async () => {
   await store.loadTree();
   await store.refreshSearchAvailability();
-  await loadKeyboardPlugin().catch((err) => console.error("[core-keyboard] Failed to load:", err));
+  await loadRendererPlugins().catch((err) => console.error("[renderer plugins] Failed to load:", err));
 }, 300);

@@ -4,6 +4,7 @@ import type { OutlineTreeNode } from "../../shared/types";
 import { store } from "../state/store";
 import { NodeEditor } from "./NodeEditor";
 import { OutlineTree } from "./OutlineTree";
+import { dragDropEnabled } from "../plugin-system/dragDropPluginState";
 
 interface Props {
   node: OutlineTreeNode;
@@ -15,6 +16,7 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
   const hasChildren = node.children.length > 0;
 
   // Keyboard handling is done by core-keyboard plugin (document-level keydown)
+  // Drag-and-drop is done by core-drag-drop plugin (event delegation on tree)
 
   const handleBulletClick = useCallback(
     (e: MouseEvent) => {
@@ -34,41 +36,15 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
     [node.id]
   );
 
-  const handleDragStart = useCallback(
-    (e: DragEvent) => {
-      e.dataTransfer!.setData("text/plain", node.id);
-      e.dataTransfer!.effectAllowed = "move";
-    },
-    [node.id]
-  );
-
-  const handleDragOver = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer!.dropEffect = "move";
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault();
-      const draggedId = e.dataTransfer!.getData("text/plain");
-      if (draggedId && draggedId !== node.id) {
-        store.moveNode(draggedId, node.id, 0);
-      }
-    },
-    [node.id]
-  );
-
   const isUnsaved = store.isNodeUnsaved(node.id);
 
   return html`
     <li
-      class="outline-node ${isFocused ? "focused" : ""} ${isUnsaved ? "unsaved" : ""}"
+      class="outline-node ${isFocused ? "focused" : ""} ${isUnsaved ? "unsaved" : ""} ${dragDropEnabled ? "draggable-node" : ""}"
+      data-node-id=${node.id}
       role="treeitem"
       aria-expanded=${hasChildren ? node.is_expanded : undefined}
-      draggable=${true}
-      onDragStart=${handleDragStart}
-      onDragOver=${handleDragOver}
-      onDrop=${handleDrop}
+      draggable=${dragDropEnabled}
     >
       <div class="node-row">
         ${hasChildren

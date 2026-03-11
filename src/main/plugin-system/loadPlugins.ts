@@ -5,12 +5,14 @@ import coreNodeOps from "../plugins/core-node-ops/index";
 import coreFtsSearch from "../plugins/core-fts-search/index";
 import coreSettings from "../plugins/core-settings/index";
 import coreKeyboard from "../plugins/core-keyboard/index";
+import coreDragDrop from "../plugins/core-drag-drop/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
   "core-fts-search": coreFtsSearch,
   "core-settings": coreSettings,
   "core-keyboard": coreKeyboard,
+  "core-drag-drop": coreDragDrop,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */
