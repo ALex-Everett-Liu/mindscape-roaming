@@ -1,6 +1,6 @@
 {
   "name": "mindscape-outliner",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "WorkFlowy-like desktop outliner built with Electrobun and SQLite",
   "scripts": {
     "start": "bun run build:dev && electrobun dev",

@@ -4,11 +4,13 @@ import type { MainPlugin } from "./PluginManifest";
 import coreNodeOps from "../plugins/core-node-ops/index";
 import coreFtsSearch from "../plugins/core-fts-search/index";
 import coreSettings from "../plugins/core-settings/index";
+import coreKeyboard from "../plugins/core-keyboard/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
   "core-fts-search": coreFtsSearch,
   "core-settings": coreSettings,
+  "core-keyboard": coreKeyboard,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */

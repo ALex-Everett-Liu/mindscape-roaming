@@ -17,6 +17,12 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
     return store.subscribe(setState);
   }, []);
 
+  useEffect(() => {
+    const handleFocusSearch = () => inputRef.current?.focus();
+    window.addEventListener("focus-search", handleFocusSearch);
+    return () => window.removeEventListener("focus-search", handleFocusSearch);
+  }, []);
+
   const handleCreateRoot = useCallback(() => {
     store.createNode(null, store.getState().zoomedNodeId);
   }, []);

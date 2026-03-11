@@ -43,4 +43,5 @@ export const CoreEvents = {
   PLUGIN_UNLOADED: "plugin:unloaded",
   APP_READY: "app:ready",
   APP_WILL_QUIT: "app:will-quit",
+  SEARCH_OPENED: "ui:search:opened",
 } as const;

@@ -5,6 +5,7 @@ import type { OutlinerRPCType } from "../shared/rpc-schema";
 import { initApi } from "./rpc/api";
 import { App } from "./components/App";
 import { store } from "./state/store";
+import { loadKeyboardPlugin } from "./plugin-system/loadKeyboardPlugin";
 
 // Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<OutlinerRPCType>({
@@ -16,6 +17,9 @@ const rpc = Electroview.defineRPC<OutlinerRPCType>({
 });
 const electroview = new Electroview({ rpc });
 initApi(electroview.rpc!.request as Parameters<typeof initApi>[0]);
+
+// Load core-keyboard plugin (keyboard shortcuts)
+loadKeyboardPlugin().catch((err) => console.error("[core-keyboard] Failed to load:", err));
 
 // Render app immediately (shows empty/loading state)
 render(html`<${App} />`, document.getElementById("app")!);

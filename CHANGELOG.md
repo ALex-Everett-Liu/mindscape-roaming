@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-03-12
+
+### Added
+
+- **core-keyboard plugin**: Renderer plugin providing standard keyboard shortcuts for outliner operations
+  - Enter — Create new sibling after current node
+  - Tab / Shift+Tab — Indent / Outdent
+  - Backspace — Delete node when content is empty
+  - Alt+↑ / Alt+↓ — Focus previous/next node
+  - Alt+Shift+↑ / Alt+Shift+↓ — Move node up/down among siblings
+  - Escape — Blur node editor
+  - Ctrl+Enter — Create new root node (in current zoom context)
+  - Ctrl+F — Focus search input
+- **Renderer plugin system**: EventBus, CommandRegistry, RendererPluginContext, action bridge for plugin-to-store communication
+- **Store**: `focusPrevious(id)` and `focusNext(id)` for depth-first navigation
+- **CoreEvents.SEARCH_OPENED**: Event for search-focus shortcut
+- core-keyboard appears in Plugin Settings (main-process stub for enable/disable)
+
+### Changed
+
+- Moved keyboard handling from OutlineNode/NodeEditor into core-keyboard plugin (document-level keydown)
+- Toolbar listens for `focus-search` custom event to focus search input on Ctrl+F
+
 ## [0.1.5] - 2025-03-11
 
 ### Added
@@ -137,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.2...v0.1.3

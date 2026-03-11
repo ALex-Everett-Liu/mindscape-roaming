@@ -268,6 +268,30 @@ class Store {
     this.update({ focusedNodeId: id });
   }
 
+  /** Find previous node in depth-first order and focus it. */
+  focusPrevious(id: string): void {
+    const ids = this.getOrderedNodeIds();
+    const idx = ids.indexOf(id);
+    if (idx > 0) this.update({ focusedNodeId: ids[idx - 1] });
+  }
+
+  /** Find next node in depth-first order and focus it. */
+  focusNext(id: string): void {
+    const ids = this.getOrderedNodeIds();
+    const idx = ids.indexOf(id);
+    if (idx >= 0 && idx < ids.length - 1) this.update({ focusedNodeId: ids[idx + 1] });
+  }
+
+  /** Get node IDs in depth-first traversal order. */
+  private getOrderedNodeIds(nodes: OutlineTreeNode[] = this.state.tree): string[] {
+    const ids: string[] = [];
+    for (const node of nodes) {
+      ids.push(node.id);
+      if (node.children.length > 0) ids.push(...this.getOrderedNodeIds(node.children));
+    }
+    return ids;
+  }
+
   async saveAll(): Promise<{ success: boolean; savedCount: number; error?: string }> {
     if (this.modifiedNodeIds.size === 0) {
       return { success: true, savedCount: 0 };

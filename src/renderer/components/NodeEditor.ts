@@ -5,7 +5,6 @@ interface Props {
   nodeId: string;
   content: string;
   isFocused: boolean;
-  onKeyDown: (e: KeyboardEvent) => void;
   onChange: (content: string) => void;
   onFocus: () => void;
 }
@@ -25,7 +24,6 @@ export function NodeEditor({
   nodeId,
   content,
   isFocused,
-  onKeyDown,
   onChange,
   onFocus,
 }: Props) {
@@ -86,7 +84,6 @@ export function NodeEditor({
       data-node-id=${nodeId}
       data-placeholder="Type something..."
       onInput=${handleInput}
-      onKeyDown=${onKeyDown}
       onFocus=${onFocus}
     />
   `;
