@@ -77,6 +77,10 @@ export type OutlinerRPCType = {
         params: { pluginId: string };
         response: RpcResult<boolean>;
       };
+      importPluginStates: {
+        params: { states: Record<string, boolean> };
+        response: RpcResult<void>;
+      };
       commitSave: {
         params: Record<string, never>;
         response: RpcResult<{ success: boolean }>;

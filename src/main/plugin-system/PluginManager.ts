@@ -148,6 +148,8 @@ export class PluginManager {
           this.enablePlugin(p.pluginId).then((ok) => (ok ? { success: true, data: true } : { success: false, error: "Failed to enable" })),
         disablePlugin: (p: { pluginId: string }) =>
           this.disablePlugin(p.pluginId).then((ok) => (ok ? { success: true, data: true } : { success: false, error: "Failed to disable" })),
+        importPluginStates: (p: { states: Record<string, boolean> }) =>
+          this.importPluginStates(p.states).then((r) => (r.success ? { success: true } : { success: false, error: r.error })),
       },
     };
   }
@@ -202,6 +204,46 @@ export class PluginManager {
     this.db.run("INSERT OR REPLACE INTO _plugin_state (plugin_id, enabled) VALUES (?, 0)", [pluginId]);
     await this.eventBus.emit(CoreEvents.PLUGIN_UNLOADED, pluginId);
     return true;
+  }
+
+  /**
+   * Apply plugin states from an import. Disables then enables in correct dependency order.
+   * @param states - Record of pluginId -> enabled
+   */
+  async importPluginStates(states: Record<string, boolean>): Promise<{ success: boolean; error?: string }> {
+    const knownIds = new Set(this.manifests.keys());
+
+    // Build target enabled set (include essential plugins)
+    const targetEnabled = new Set<string>();
+    for (const [id, m] of this.manifests) {
+      if (m.essential) targetEnabled.add(id);
+    }
+    for (const [id, enabled] of Object.entries(states)) {
+      if (knownIds.has(id) && enabled) targetEnabled.add(id);
+    }
+
+    const resolution = resolveDependencies(this.manifests, this.enabledPlugins);
+    const reverseOrder = [...resolution.loadOrder].reverse();
+
+    // 1. Disable plugins that should be off (dependents first)
+    for (const pluginId of reverseOrder) {
+      const manifest = this.manifests.get(pluginId)!;
+      if (manifest.essential) continue;
+      const shouldEnable = targetEnabled.has(pluginId);
+      if (!shouldEnable && this.enabledPlugins.has(pluginId)) {
+        await this.disablePlugin(pluginId);
+      }
+    }
+
+    // 2. Enable plugins that should be on (dependencies first)
+    const enableResolution = resolveDependencies(this.manifests, targetEnabled);
+    for (const pluginId of enableResolution.loadOrder) {
+      if (targetEnabled.has(pluginId) && !this.enabledPlugins.has(pluginId)) {
+        await this.enablePlugin(pluginId);
+      }
+    }
+
+    return { success: true };
   }
 
   async shutdown(): Promise<void> {

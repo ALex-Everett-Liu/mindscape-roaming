@@ -71,6 +71,14 @@ export interface RpcResult<T> {
   error?: string;
 }
 
+// ─── Settings Export/Import ──────────────────────────
+export interface SettingsExport {
+  version: number;
+  exportedAt: string;
+  theme: string;
+  plugins: Record<string, boolean>;
+}
+
 // ─── Plugin (for Settings UI) ────────────────────────
 export interface PluginInfo {
   id: string;

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7.1] - 2025-03-12
+
+### Added
+
+- **Settings export/import**: Export theme and plugin states to JSON file; import to overwrite current settings (Settings → Import / Export tab)
+
 ## [0.1.7] - 2025-03-12
 
 ### Added
@@ -192,7 +198,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7.1...HEAD
+[0.1.7.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7...v0.1.7.1
 [0.1.7]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.4...v0.1.5

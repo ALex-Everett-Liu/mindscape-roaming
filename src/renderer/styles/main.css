@@ -506,6 +506,22 @@ body {
   margin: 0;
 }
 
+/* Import / Export */
+.import-export-actions {
+  padding: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.settings-import-error {
+  margin: 0 20px 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--error-color, #e57373);
+  background: rgba(229, 115, 115, 0.1);
+  border-radius: 6px;
+}
+
 .plugin-list {
   overflow-y: auto;
   padding: 0 20px 20px;
