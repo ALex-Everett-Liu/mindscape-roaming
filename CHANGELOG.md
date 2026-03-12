@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2025-03-12
+
+### Added
+
+- **Theme system**: Switch between multiple visual themes via Settings → Theme tab
+  - **Native** (default): Simple dark theme with native system styling
+  - **Light**: Clean, minimal light theme
+  - **Organic**: Warm, natural theme with earth-drawn palette (Nunito font)
+  - **Ocean**: Cool oceanic blue tones
+  - **Forest**: Deep green, nature-inspired palette
+- Theme preference persisted in localStorage; applies immediately on selection
+- Tabbed Settings modal: Plugins and Theme tabs
+
 ## [0.1.6] - 2025-03-12
 
 ### Added
@@ -179,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.3...v0.1.4

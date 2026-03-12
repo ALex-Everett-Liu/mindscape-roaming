@@ -6,6 +6,10 @@ import { initApi } from "./rpc/api";
 import { App } from "./components/App";
 import { store } from "./state/store";
 import { loadRendererPlugins } from "./plugin-system/loadRendererPlugins";
+import { initializeTheme } from "./theme/themeManager";
+
+// Initialize theme before first paint
+initializeTheme();
 
 // Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<OutlinerRPCType>({
