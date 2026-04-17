@@ -27,7 +27,7 @@ render(html`<${App} />`, document.getElementById("app")!);
 
 // Defer data load and plugin load - give WebSocket time to connect to main process
 setTimeout(async () => {
-  await store.loadTree();
+  await store.initialLoad();
   await store.refreshSearchAvailability();
   await loadRendererPlugins().catch((err) => console.error("[renderer plugins] Failed to load:", err));
 }, 300);

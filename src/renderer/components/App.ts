@@ -51,8 +51,8 @@ export function App() {
       html`
         <${Breadcrumb}
           ancestors=${state.breadcrumbs}
-          onNavigate=${(id: string | null) =>
-            id ? store.zoomIn(id) : store.zoomToRoot()}
+          onHome=${() => store.zoomToRoot()}
+          onNavigateToAncestor=${(id: string) => store.zoomIn(id)}
         />
       `}
 

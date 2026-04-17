@@ -2,6 +2,18 @@ import type { OutlineTreeNode, OutlineNode } from "../../shared/types";
 import { api } from "../rpc/api";
 import { saveStateManager } from "./saveStateManager";
 
+/** Persisted default zoom (focus) target, similar to luhmann-roam `main_default_focus_node`. */
+const DEFAULT_ZOOM_STORAGE_KEY = "mindscape_default_focus_node";
+
+function persistZoomPreference(zoomedNodeId: string | null): void {
+  try {
+    if (zoomedNodeId) localStorage.setItem(DEFAULT_ZOOM_STORAGE_KEY, zoomedNodeId);
+    else localStorage.removeItem(DEFAULT_ZOOM_STORAGE_KEY);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export interface AppState {
   tree: OutlineTreeNode[];
   zoomedNodeId: string | null;
@@ -100,6 +112,31 @@ class Store {
   private clearModified(): void {
     this.modifiedNodeIds.clear();
     saveStateManager.notifyListeners();
+  }
+
+  /** Restore last focused subtree after reload if the node still exists. */
+  async initialLoad(): Promise<void> {
+    let zoomTarget: string | null = null;
+    try {
+      const saved = localStorage.getItem(DEFAULT_ZOOM_STORAGE_KEY);
+      if (saved) {
+        const check = await api.getNode(saved);
+        if (check.success && check.data) zoomTarget = saved;
+        else localStorage.removeItem(DEFAULT_ZOOM_STORAGE_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+    if (zoomTarget) this.update({ zoomedNodeId: zoomTarget });
+    await this.loadTree();
+  }
+
+  getZoomedNodeId(): string | null {
+    return this.state.zoomedNodeId;
+  }
+
+  isZoomMode(): boolean {
+    return this.state.zoomedNodeId !== null;
   }
 
   async loadTree(showLoading = true): Promise<void> {
@@ -222,6 +259,7 @@ class Store {
 
   async zoomIn(nodeId: string): Promise<void> {
     this.update({ zoomedNodeId: nodeId });
+    persistZoomPreference(nodeId);
     await this.loadTree(false);
   }
 
@@ -229,14 +267,17 @@ class Store {
     if (this.state.breadcrumbs.length > 1) {
       const parent = this.state.breadcrumbs[this.state.breadcrumbs.length - 2];
       this.update({ zoomedNodeId: parent.id });
+      persistZoomPreference(parent.id);
     } else {
       this.update({ zoomedNodeId: null });
+      persistZoomPreference(null);
     }
     await this.loadTree(false);
   }
 
   async zoomToRoot(): Promise<void> {
     this.update({ zoomedNodeId: null });
+    persistZoomPreference(null);
     await this.loadTree(false);
   }
 
@@ -339,7 +380,14 @@ class Store {
       if (ok) {
         console.log("[Discard] Success, clearing modified and reloading tree");
         this.clearModified();
-        this.update({ unsavedCount: 0, lastSaveError: null, lastSaveSuccess: null });
+        this.update({
+          unsavedCount: 0,
+          lastSaveError: null,
+          lastSaveSuccess: null,
+          zoomedNodeId: null,
+          breadcrumbs: [],
+        });
+        persistZoomPreference(null);
         saveStateManager.notifyListeners();
         // Force full reload: clear tree, show loading, yield for main to settle, fetch from restored DB
         this.update({ tree: [], loading: true });

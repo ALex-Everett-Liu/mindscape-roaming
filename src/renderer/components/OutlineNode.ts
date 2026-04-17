@@ -21,11 +21,9 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
   const handleBulletClick = useCallback(
     (e: MouseEvent) => {
       e.stopPropagation();
-      if (hasChildren) {
-        store.zoomIn(node.id);
-      }
+      void store.zoomIn(node.id);
     },
-    [node.id, hasChildren]
+    [node.id]
   );
 
   const handleToggle = useCallback(
@@ -62,7 +60,8 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
         <button
           class="bullet ${hasChildren ? "has-children" : ""}"
           onClick=${handleBulletClick}
-          aria-label="Zoom into node"
+          aria-label="Focus on this node (show subtree)"
+          title="Focus on this node (show subtree)"
         >
           •
         </button>

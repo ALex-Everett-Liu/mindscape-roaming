@@ -169,11 +169,13 @@ body {
   color: #e57373;
 }
 
-/* ─── Breadcrumb ────────────────────────────────────── */
-.breadcrumb {
+/* ─── Breadcrumb (focus / zoom trail) ───────────────── */
+.breadcrumb.breadcrumb-container {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  row-gap: 6px;
   padding: 8px 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
@@ -188,20 +190,31 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
+  max-width: min(320px, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.breadcrumb-item:hover {
+.breadcrumb-item:hover:not(.breadcrumb-active) {
   background: var(--focus-bg);
   color: var(--accent);
 }
 
-.breadcrumb-item.current {
-  color: var(--text);
+.breadcrumb-item.breadcrumb-active {
+  cursor: default;
+  color: var(--accent);
   font-weight: 600;
+}
+
+.breadcrumb-item.breadcrumb-home {
+  flex-shrink: 0;
 }
 
 .breadcrumb-separator {
   color: var(--text-muted);
+  user-select: none;
+  flex-shrink: 0;
 }
 
 /* ─── Outline Tree ──────────────────────────────────── */

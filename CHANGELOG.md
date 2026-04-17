@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-17
+
+### Added
+
+- **Zoom / focus persistence**: `localStorage` key `mindscape_default_focus_node`; `store.initialLoad()` validates the id with `getNode` and restores zoom on startup
+- **Store helpers**: `getZoomedNodeId()` and `isZoomMode()` for the current zoom (focus) context
+
+### Changed
+
+- **Breadcrumb trail** (shown while zoomed): Home control with “Return to root level” tooltip; `>` separators; current segment is a non-interactive `breadcrumb-active` label (not a button); ancestor segments navigate via zoom; layout uses flex-wrap and ellipsis for long titles
+- **Bullet control**: any node (including leaves) can zoom/focus into its subtree; clarified `aria-label` / `title`
+
+### Fixed
+
+- **Discard changes**: restoring the DB from backup clears zoom state, breadcrumbs, and the saved focus id so a stale focus target cannot linger
+
 ## [0.2.0] - 2026-04-17
 
 ### Added
@@ -206,7 +222,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7.1...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7.1...v0.2.0
 [0.1.7.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7...v0.1.7.1
 [0.1.7]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.5...v0.1.6
