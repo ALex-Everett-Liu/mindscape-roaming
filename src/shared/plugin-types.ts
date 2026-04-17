@@ -31,6 +31,17 @@ export interface RendererPluginContext {
     id: string;
     name: string;
     shortcut?: string;
+    category?: string;
+    keywords?: string[];
     execute: () => void | Promise<void>;
   }): void;
+  listCommands(): ReadonlyArray<{
+    id: string;
+    name: string;
+    shortcut?: string;
+    category?: string;
+    keywords?: string[];
+    execute: () => void | Promise<void>;
+  }>;
+  unregisterAllCommands(): void;
 }

@@ -1,3 +1,5 @@
+import { isCommandPaletteOpen } from "./commandPaletteState";
+
 /**
  * Registers global keyboard shortcuts and executes commands.
  */
@@ -5,6 +7,8 @@ export interface Command {
   id: string;
   name: string;
   shortcut?: string;
+  category?: string;
+  keywords?: string[];
   execute: () => void | Promise<void>;
 }
 
@@ -32,12 +36,23 @@ export class CommandRegistry {
     this.updateListener();
   }
 
+  /** Snapshot of registered commands, sorted by display name. */
+  getAllCommands(): Command[] {
+    return [...this.commands.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    );
+  }
+
   private updateListener(): void {
     this.removeListener();
     if (this.commands.size === 0) return;
     this.keydownHandler = (e: KeyboardEvent) => {
       const shortcut = this.eventToShortcut(e);
       if (!shortcut) return;
+      if (isCommandPaletteOpen()) {
+        const norm = shortcut.replace(/Meta/g, "Ctrl");
+        if (norm !== "Ctrl+P") return;
+      }
       for (const cmd of this.commands.values()) {
         if (cmd.shortcut && this.shortcutMatches(cmd.shortcut, shortcut)) {
           e.preventDefault();

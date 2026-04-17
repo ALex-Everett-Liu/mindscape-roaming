@@ -9,11 +9,19 @@ import { setupActionBridge } from "./actionBridge";
 import { EventBus as EventBusClass } from "./EventBus";
 import coreKeyboard from "../plugins/core-keyboard";
 import coreDragDrop from "../plugins/core-drag-drop";
+import coreCommandPalette from "../plugins/core-command-palette";
 import { store } from "../state/store";
 import { CoreEvents } from "../../shared/events";
 import { api } from "../rpc/api";
+import type { PluginManifest } from "../../shared/plugin-types";
 
-type RendererPluginId = "core-keyboard" | "core-drag-drop";
+type RendererPluginId = "core-keyboard" | "core-drag-drop" | "core-command-palette";
+
+const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
+  "core-keyboard": coreKeyboard.manifest,
+  "core-drag-drop": coreDragDrop.manifest,
+  "core-command-palette": coreCommandPalette.manifest,
+};
 
 const RENDERER_PLUGINS: Record<
   RendererPluginId,
@@ -21,6 +29,7 @@ const RENDERER_PLUGINS: Record<
 > = {
   "core-keyboard": coreKeyboard,
   "core-drag-drop": coreDragDrop,
+  "core-command-palette": coreCommandPalette,
 };
 
 let eventBus: EventBus | null = null;
@@ -47,11 +56,7 @@ async function loadPlugin(pluginId: RendererPluginId): Promise<void> {
   const plugin = RENDERER_PLUGINS[pluginId];
   if (!plugin) return;
 
-  const ctx = new RendererPluginContext(
-    pluginId === "core-keyboard" ? coreKeyboard.manifest : coreDragDrop.manifest,
-    eventBus!,
-    commands!
-  );
+  const ctx = new RendererPluginContext(RENDERER_MANIFESTS[pluginId], eventBus!, commands!);
   pluginContexts.set(pluginId, ctx);
   await plugin.onLoad(ctx);
   loadedPlugins.add(pluginId);
@@ -90,7 +95,7 @@ export async function loadRendererPlugins(): Promise<void> {
     res.data.filter((p) => p.enabled).map((p) => p.id as RendererPluginId)
   );
 
-  for (const id of ["core-keyboard", "core-drag-drop"] as const) {
+  for (const id of ["core-keyboard", "core-drag-drop", "core-command-palette"] as const) {
     if (enabled.has(id)) {
       await loadPlugin(id);
     } else {

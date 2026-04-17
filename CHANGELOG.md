@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-17
+
+### Added
+
+- **Command palette** (`core-command-palette` renderer plugin, optional in Settings): **Ctrl+P** / **Cmd+P** opens a searchable overlay listing registered commands; filter by name, id, category, or keywords; ranked results when searching; optional **Recently used** section and usage counts persisted in `localStorage` (`mindscape_command_palette_usage`, `mindscape_command_palette_recent`)
+- **`CommandRegistry`** and **`RendererPluginContext.registerCommand` / `listCommands`**: global shortcut dispatch for commands that declare a `shortcut`; `commandPaletteState` lets the palette capture navigation keys while open (palette toggle still works)
+- **Main-process stub** for `core-command-palette` so the plugin appears in the enable/disable list
+- **`docs/command-palette-guide.md`**: reference blueprint for palette behavior (adapted from another project’s layout)
+
+### Changed
+
+- **`core-keyboard`**: registers **Create New Root Node** (**Ctrl+Enter**) and **Search** (**Ctrl+F**) as commands for the palette; unregisters them on plugin unload
+
 ## [0.2.1] - 2026-04-17
 
 ### Added

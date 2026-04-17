@@ -4,11 +4,13 @@ import { manifest } from "./manifest";
 import { CoreEvents } from "../../../shared/events";
 
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+let ctxRef: RendererPluginContext | null = null;
 
 const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
+    ctxRef = ctx;
     keydownHandler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
 
@@ -75,6 +77,8 @@ const plugin: RendererPlugin = {
       id: "new-root-node",
       name: "Create New Root Node",
       shortcut: "Ctrl+Enter",
+      category: "Outline",
+      keywords: ["root", "new", "node"],
       execute: () => void ctx.emit("action:createRootNode"),
     });
 
@@ -82,11 +86,15 @@ const plugin: RendererPlugin = {
       id: "search-focus",
       name: "Search",
       shortcut: "Ctrl+F",
+      category: "Navigation",
+      keywords: ["find", "filter"],
       execute: () => void ctx.emit(CoreEvents.SEARCH_OPENED),
     });
   },
 
   async onUnload() {
+    ctxRef?.unregisterAllCommands();
+    ctxRef = null;
     if (keydownHandler) {
       document.removeEventListener("keydown", keydownHandler, true);
       keydownHandler = null;

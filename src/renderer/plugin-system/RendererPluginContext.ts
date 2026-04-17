@@ -1,6 +1,6 @@
 import type { PluginManifest } from "../../shared/plugin-types";
 import type { EventBus } from "./EventBus";
-import type { CommandRegistry } from "./CommandRegistry";
+import type { Command, CommandRegistry } from "./CommandRegistry";
 
 export interface RendererPluginContextDeps {
   manifest: PluginManifest;
@@ -31,11 +31,21 @@ export class RendererPluginContext {
     id: string;
     name: string;
     shortcut?: string;
+    category?: string;
+    keywords?: string[];
     execute: () => void | Promise<void>;
   }): void {
     this.commands.register({
       ...command,
       id: `${this.pluginId}:${command.id}`,
     });
+  }
+
+  listCommands(): Command[] {
+    return this.commands.getAllCommands();
+  }
+
+  unregisterAllCommands(): void {
+    this.commands.unregisterAll(this.pluginId);
   }
 }

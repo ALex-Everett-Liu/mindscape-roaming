@@ -6,6 +6,7 @@ import coreFtsSearch from "../plugins/core-fts-search/index";
 import coreSettings from "../plugins/core-settings/index";
 import coreKeyboard from "../plugins/core-keyboard/index";
 import coreDragDrop from "../plugins/core-drag-drop/index";
+import coreCommandPalette from "../plugins/core-command-palette/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
@@ -13,6 +14,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-settings": coreSettings,
   "core-keyboard": coreKeyboard,
   "core-drag-drop": coreDragDrop,
+  "core-command-palette": coreCommandPalette,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */
