@@ -3,6 +3,8 @@ data/
 dist/
 build/
 artifacts/
+# Local font binaries (e.g. LXGW Bright); not committed — copy into this folder when building locally
+src/renderer/fonts/
 *.db
 *.db-journal
 .DS_Store

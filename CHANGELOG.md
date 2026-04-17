@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.7.1] - 2025-03-12
+## [0.2.0] - 2026-04-17
 
 ### Added
 
-- **Settings export/import**: Export theme and plugin states to JSON file; import to overwrite current settings (Settings → Import / Export tab)
+- **LXGW Bright** support via local UI fonts in `src/renderer/fonts/` (directory is gitignored; obtain TTFs from the [LXGW Bright](https://github.com/lxgw/LxgwBright) release and copy them locally). Faces are registered in `src/renderer/styles/fonts.css` with `@font-face` (weights 300 / 400 / 500, normal and italic) and `font-display: swap`
+- **Settings → Typography** tab: choose interface font (theme default, LXGW Bright, system UI, Nunito) with live preview; preference stored under `outliner_uiFont` and re-applied after theme changes
+- **Settings export format v2**: optional `uiFont` field; import applies typography when present
+
+### Changed
+
+- **Nunito** for themes that use it is loaded via `fonts.css` (`@import`) instead of a separate `<link>` in `index.html`
+- **Electrobun build**: copy `fonts.css` into `views/renderer/`; font binaries are copied from `src/renderer/fonts/` when present (same as local dev)
 
 ## [0.1.7] - 2025-03-12
 
@@ -25,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Forest**: Deep green, nature-inspired palette
 - Theme preference persisted in localStorage; applies immediately on selection
 - Tabbed Settings modal: Plugins and Theme tabs
+- **Settings export/import**: Export theme and plugin states to JSON file; import to overwrite current settings (Settings → Import / Export tab)
 
 ## [0.1.6] - 2025-03-12
 

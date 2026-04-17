@@ -76,6 +76,8 @@ export interface SettingsExport {
   version: number;
   exportedAt: string;
   theme: string;
+  /** Full CSS `font-family` when the user overrides theme typography; omit for theme default */
+  uiFont?: string | null;
   plugins: Record<string, boolean>;
 }
 

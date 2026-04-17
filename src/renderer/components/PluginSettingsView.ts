@@ -8,21 +8,25 @@ import {
   getAllThemes,
   getCurrentTheme,
   applyTheme,
+  getSavedUIFont,
+  setUIFont,
+  UI_FONT_OPTIONS,
   type ThemeDefinition,
 } from "../theme/themeManager";
 
-const SETTINGS_EXPORT_VERSION = 1;
+const SETTINGS_EXPORT_VERSION = 2;
 
 interface Props {
   onClose: () => void;
 }
 
-type SettingsTab = "plugins" | "theme" | "import-export";
+type SettingsTab = "plugins" | "theme" | "typography" | "import-export";
 
 export function PluginSettingsView({ onClose }: Props) {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [activeTab, setActiveTab] = useState<SettingsTab>("plugins");
   const [selectedTheme, setSelectedTheme] = useState(getCurrentTheme());
+  const [selectedUIFont, setSelectedUIFont] = useState(() => getSavedUIFont() ?? "");
   const [importExportError, setImportExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,10 +65,12 @@ export function PluginSettingsView({ onClose }: Props) {
     for (const p of plugins) {
       pluginsMap[p.id] = p.enabled;
     }
+    const savedFont = getSavedUIFont();
     const data: SettingsExport = {
       version: SETTINGS_EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
       theme: getCurrentTheme(),
+      ...(savedFont ? { uiFont: savedFont } : {}),
       plugins: pluginsMap,
     };
     const json = JSON.stringify(data, null, 2);
@@ -98,6 +104,12 @@ export function PluginSettingsView({ onClose }: Props) {
       const themeId = themesMap[data.theme] ? data.theme : "native";
       applyTheme(themeId);
       setSelectedTheme(themeId);
+      const importedFont =
+        typeof data.uiFont === "string" && data.uiFont.trim()
+          ? data.uiFont.trim()
+          : null;
+      setUIFont(importedFont);
+      setSelectedUIFont(importedFont ?? "");
       const res = await api.importPluginStates(data.plugins);
       if (res.success) {
         await load();
@@ -134,6 +146,12 @@ export function PluginSettingsView({ onClose }: Props) {
             onClick=${() => setActiveTab("theme")}
           >
             Theme
+          </button>
+          <button
+            class="settings-tab ${activeTab === "typography" ? "active" : ""}"
+            onClick=${() => setActiveTab("typography")}
+          >
+            Typography
           </button>
           <button
             class="settings-tab ${activeTab === "import-export" ? "active" : ""}"
@@ -199,6 +217,43 @@ export function PluginSettingsView({ onClose }: Props) {
                 </div>
               `
             )}
+          </div>
+        `}
+
+        ${activeTab === "typography" &&
+        html`
+          <p class="settings-desc">
+            Choose a UI font. Theme default follows each theme’s typography (e.g. Nunito on Organic). LXGW Bright uses
+            local files bundled with the app.
+          </p>
+          <div class="typography-panel">
+            <label class="typography-label" for="settings-ui-font">Interface font</label>
+            <select
+              id="settings-ui-font"
+              class="typography-select"
+              value=${selectedUIFont}
+              onChange=${(e: Event) => {
+                const v = (e.target as HTMLSelectElement).value;
+                setSelectedUIFont(v);
+                setUIFont(v || null);
+              }}
+            >
+              ${(() => {
+                const opts = [...UI_FONT_OPTIONS];
+                if (
+                  selectedUIFont &&
+                  !opts.some((o) => o.value === selectedUIFont)
+                ) {
+                  opts.splice(1, 0, { label: "Custom", value: selectedUIFont });
+                }
+                return opts.map(
+                  (o) => html`<option value=${o.value}>${o.label}</option>`
+                );
+              })()}
+            </select>
+            <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}`}>
+              The quick brown fox jumps over the lazy dog. 敏捷的棕狐跳过懒狗。
+            </p>
           </div>
         `}
 

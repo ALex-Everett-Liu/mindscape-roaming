@@ -1,0 +1,51 @@
+/* Remote theme fonts (Organic uses Nunito; others use system UI) */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap");
+
+/* LXGW Bright — local files copied to views/renderer/fonts/ at build time */
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-LightItalic.ttf") format("truetype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW Bright";
+  src: url("./fonts/LXGWBright-MediumItalic.ttf") format("truetype");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}

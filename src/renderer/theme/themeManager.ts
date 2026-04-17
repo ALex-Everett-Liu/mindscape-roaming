@@ -11,7 +11,27 @@
  */
 
 const STORAGE_KEY = "outliner_theme";
+/** Full CSS `font-family` value when user overrides the theme default */
+const UI_FONT_STORAGE_KEY = "outliner_uiFont";
+
 export const DEFAULT_THEME = "native";
+
+/** Preset options for Settings → Typography (`value` is a full `font-family` string) */
+export const UI_FONT_OPTIONS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "Theme default", value: "" },
+  {
+    label: "LXGW Bright",
+    value: "'LXGW Bright', Arial, sans-serif",
+  },
+  {
+    label: "System UI",
+    value: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  {
+    label: "Nunito",
+    value: '"Nunito", sans-serif',
+  },
+];
 
 export interface ThemeDefinition {
   name: string;
@@ -170,6 +190,58 @@ export function applyTheme(themeId: string): void {
     .join(" ") + ` theme-${themeId}`;
 
   saveTheme(themeId);
+  reapplySavedUIFont();
+}
+
+/**
+ * If the user saved a UI font, re-apply it on top of the active theme (call after `applyTheme`).
+ */
+function reapplySavedUIFont(): void {
+  try {
+    const saved = localStorage.getItem(UI_FONT_STORAGE_KEY);
+    if (saved) {
+      document.documentElement.style.setProperty("--font-sans", saved);
+    }
+  } catch (e) {
+    console.warn("Failed to re-apply UI font:", e);
+  }
+}
+
+/**
+ * Persist and apply a UI font override. Pass `null` or empty string to use the current theme’s typography.
+ */
+export function setUIFont(family: string | null | undefined): void {
+  const trimmed = family?.trim() ?? "";
+  try {
+    if (trimmed) {
+      localStorage.setItem(UI_FONT_STORAGE_KEY, trimmed);
+      document.documentElement.style.setProperty("--font-sans", trimmed);
+    } else {
+      localStorage.removeItem(UI_FONT_STORAGE_KEY);
+      const id = loadTheme();
+      const theme = THEMES[id];
+      if (theme) {
+        document.documentElement.style.setProperty(
+          "--font-sans",
+          theme.variables["--font-sans"] ?? ""
+        );
+      }
+    }
+  } catch (e) {
+    console.error("Failed to save UI font:", e);
+  }
+}
+
+/**
+ * Saved UI font override, or `null` if using the theme default.
+ */
+export function getSavedUIFont(): string | null {
+  try {
+    const s = localStorage.getItem(UI_FONT_STORAGE_KEY);
+    return s && s.trim() ? s : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
