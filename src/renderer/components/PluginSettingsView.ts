@@ -31,6 +31,7 @@ export function PluginSettingsView({ onClose }: Props) {
   const [selectedTheme, setSelectedTheme] = useState(getCurrentTheme());
   const [selectedUIFont, setSelectedUIFont] = useState(() => getSavedUIFont() ?? "");
   const [selectedUIFontSize, setSelectedUIFontSize] = useState(() => getSavedUIFontSize() ?? "15px");
+  const [customFontSize, setCustomFontSize] = useState("");
   const [importExportError, setImportExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -260,17 +261,52 @@ export function PluginSettingsView({ onClose }: Props) {
             <select
               id="settings-ui-font-size"
               class="typography-select"
-              value=${selectedUIFontSize}
+              value=${UI_FONT_SIZE_OPTIONS.some((o) => o.value === selectedUIFontSize) ? selectedUIFontSize : "custom"}
               onChange=${(e: Event) => {
                 const v = (e.target as HTMLSelectElement).value;
-                setSelectedUIFontSize(v);
-                setUIFontSize(v);
+                if (v === "custom") {
+                  setCustomFontSize(selectedUIFontSize.replace("px", ""));
+                } else {
+                  setSelectedUIFontSize(v);
+                  setUIFontSize(v);
+                }
               }}
             >
               ${UI_FONT_SIZE_OPTIONS.map(
                 (o) => html`<option value=${o.value}>${o.label}</option>`
               )}
+              <option value="custom">Custom...</option>
             </select>
+            
+            ${!UI_FONT_SIZE_OPTIONS.some((o) => o.value === selectedUIFontSize) &&
+            html`
+              <div class="custom-font-size-input">
+                <input
+                  type="number"
+                  min="8"
+                  max="72"
+                  value=${customFontSize}
+                  onChange=${(e: Event) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    setCustomFontSize(val);
+                  }}
+                  onKeyPress=${(e: KeyboardEvent) => {
+                    if (e.key === "Enter") {
+                      const val = (e.target as HTMLInputElement).value;
+                      const num = parseInt(val, 10);
+                      if (num >= 8 && num <= 72) {
+                        const newSize = `${num}px`;
+                        setSelectedUIFontSize(newSize);
+                        setUIFontSize(newSize);
+                      }
+                    }
+                  }}
+                  placeholder="Enter font size"
+                  class="typography-input"
+                />
+                <span class="typography-input-suffix">px</span>
+              </div>
+            `}
             
             <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}; font-size: ${selectedUIFontSize}`}>
               The quick brown fox jumps over the lazy dog. 敏捷的棕狐跳过懒狗。

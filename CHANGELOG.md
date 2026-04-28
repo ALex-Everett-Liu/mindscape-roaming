@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Settings → Typography**: Font size adjustment with preset options (Small 13px, Normal 15px, Large 17px, Extra Large 19px)
+- **Settings → Typography**: Font size adjustment with preset options (Small 13px, Normal 15px, Large 17px, Extra Large 19px) plus custom input for manual font size entry (8-72px range)
 - Font size preference persisted in `localStorage` (`outliner_uiFontSize`) and re-applied after theme changes
 
 ## [0.2.2] - 2026-04-17

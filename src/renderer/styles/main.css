@@ -551,6 +551,34 @@ body {
   border-color: var(--accent);
 }
 
+.custom-font-size-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.typography-input {
+  flex: 1;
+  max-width: 120px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+}
+
+.typography-input:focus {
+  border-color: var(--accent);
+}
+
+.typography-input-suffix {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .font-preview {
   font-size: 15px;
   line-height: 1.5;
