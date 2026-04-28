@@ -9,9 +9,25 @@ interface Props {
   onOpenSettings?: () => void;
 }
 
+function debounce<A extends unknown[], R>(
+  fn: (...args: A) => R,
+  ms: number
+): (...args: A) => void {
+  let timer: ReturnType<typeof setTimeout>;
+  return (...args: A) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
 export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState(store.getState());
+
+  const debouncedSearch = useCallback(
+    debounce((query: string) => onSearch(query), 200),
+    [onSearch]
+  );
 
   useEffect(() => {
     return store.subscribe(setState);
@@ -68,7 +84,7 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
                 type="text"
                 placeholder="Search... (Ctrl+F)"
                 value=${searchQuery}
-                onInput=${(e: Event) => onSearch((e.target as HTMLInputElement).value)}
+                onInput=${(e: Event) => debouncedSearch((e.target as HTMLInputElement).value)}
                 onKeyDown=${handleSearchKeyDown}
               />
             `
