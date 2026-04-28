@@ -11,6 +11,9 @@ import {
   getSavedUIFont,
   setUIFont,
   UI_FONT_OPTIONS,
+  getSavedUIFontSize,
+  setUIFontSize,
+  UI_FONT_SIZE_OPTIONS,
   type ThemeDefinition,
 } from "../theme/themeManager";
 
@@ -27,6 +30,7 @@ export function PluginSettingsView({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("plugins");
   const [selectedTheme, setSelectedTheme] = useState(getCurrentTheme());
   const [selectedUIFont, setSelectedUIFont] = useState(() => getSavedUIFont() ?? "");
+  const [selectedUIFontSize, setSelectedUIFontSize] = useState(() => getSavedUIFontSize() ?? "15px");
   const [importExportError, setImportExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -223,7 +227,7 @@ export function PluginSettingsView({ onClose }: Props) {
         ${activeTab === "typography" &&
         html`
           <p class="settings-desc">
-            Choose a UI font. Theme default follows each theme’s typography (e.g. Nunito on Organic). LXGW Bright uses
+            Choose UI font and font size. Theme default follows each theme’s typography (e.g. Nunito on Organic). LXGW Bright uses
             local files bundled with the app.
           </p>
           <div class="typography-panel">
@@ -251,7 +255,24 @@ export function PluginSettingsView({ onClose }: Props) {
                 );
               })()}
             </select>
-            <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}`}>
+            
+            <label class="typography-label" for="settings-ui-font-size">Font size</label>
+            <select
+              id="settings-ui-font-size"
+              class="typography-select"
+              value=${selectedUIFontSize}
+              onChange=${(e: Event) => {
+                const v = (e.target as HTMLSelectElement).value;
+                setSelectedUIFontSize(v);
+                setUIFontSize(v);
+              }}
+            >
+              ${UI_FONT_SIZE_OPTIONS.map(
+                (o) => html`<option value=${o.value}>${o.label}</option>`
+              )}
+            </select>
+            
+            <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}; font-size: ${selectedUIFontSize}`}>
               The quick brown fox jumps over the lazy dog. 敏捷的棕狐跳过懒狗。
             </p>
           </div>

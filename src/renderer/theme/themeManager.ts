@@ -13,6 +13,8 @@
 const STORAGE_KEY = "outliner_theme";
 /** Full CSS `font-family` value when user overrides the theme default */
 const UI_FONT_STORAGE_KEY = "outliner_uiFont";
+/** CSS `font-size` value when user overrides the theme default */
+const UI_FONT_SIZE_STORAGE_KEY = "outliner_uiFontSize";
 
 export const DEFAULT_THEME = "native";
 
@@ -31,6 +33,14 @@ export const UI_FONT_OPTIONS: ReadonlyArray<{ label: string; value: string }> = 
     label: "Nunito",
     value: '"Nunito", sans-serif',
   },
+];
+
+/** Preset options for Settings → Typography font size (`value` is a CSS font-size value) */
+export const UI_FONT_SIZE_OPTIONS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "Small (13px)", value: "13px" },
+  { label: "Normal (15px)", value: "15px" },
+  { label: "Large (17px)", value: "17px" },
+  { label: "Extra Large (19px)", value: "19px" },
 ];
 
 export interface ThemeDefinition {
@@ -60,6 +70,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       "--focus-bg": "rgba(79, 195, 247, 0.08)",
       "--font-mono": '"SF Mono", "Fira Code", monospace',
       "--font-sans": '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-size": "15px",
     },
   },
 
@@ -79,6 +90,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       "--focus-bg": "rgba(2, 132, 199, 0.08)",
       "--font-mono": '"SF Mono", "Fira Code", monospace',
       "--font-sans": '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-size": "15px",
     },
   },
 
@@ -98,6 +110,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       "--focus-bg": "rgba(93, 112, 82, 0.08)",
       "--font-mono": '"SF Mono", "Fira Code", monospace',
       "--font-sans": '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-size": "15px",
     },
   },
 
@@ -117,6 +130,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       "--focus-bg": "rgba(56, 189, 248, 0.1)",
       "--font-mono": '"SF Mono", "Fira Code", monospace',
       "--font-sans": '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-size": "15px",
     },
   },
 
@@ -136,6 +150,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       "--focus-bg": "rgba(74, 222, 128, 0.08)",
       "--font-mono": '"SF Mono", "Fira Code", monospace',
       "--font-sans": '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-size": "15px",
     },
   },
 };
@@ -191,6 +206,7 @@ export function applyTheme(themeId: string): void {
 
   saveTheme(themeId);
   reapplySavedUIFont();
+  reapplySavedUIFontSize();
 }
 
 /**
@@ -204,6 +220,20 @@ function reapplySavedUIFont(): void {
     }
   } catch (e) {
     console.warn("Failed to re-apply UI font:", e);
+  }
+}
+
+/**
+ * If the user saved a UI font size, re-apply it on top of the active theme (call after `applyTheme`).
+ */
+function reapplySavedUIFontSize(): void {
+  try {
+    const saved = localStorage.getItem(UI_FONT_SIZE_STORAGE_KEY);
+    if (saved) {
+      document.documentElement.style.setProperty("--font-size", saved);
+    }
+  } catch (e) {
+    console.warn("Failed to re-apply UI font size:", e);
   }
 }
 
@@ -238,6 +268,43 @@ export function setUIFont(family: string | null | undefined): void {
 export function getSavedUIFont(): string | null {
   try {
     const s = localStorage.getItem(UI_FONT_STORAGE_KEY);
+    return s && s.trim() ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist and apply a UI font size override. Pass `null` or empty string to use the current theme’s font size.
+ */
+export function setUIFontSize(size: string | null | undefined): void {
+  const trimmed = size?.trim() ?? "";
+  try {
+    if (trimmed) {
+      localStorage.setItem(UI_FONT_SIZE_STORAGE_KEY, trimmed);
+      document.documentElement.style.setProperty("--font-size", trimmed);
+    } else {
+      localStorage.removeItem(UI_FONT_SIZE_STORAGE_KEY);
+      const id = loadTheme();
+      const theme = THEMES[id];
+      if (theme) {
+        document.documentElement.style.setProperty(
+          "--font-size",
+          theme.variables["--font-size"] ?? ""
+        );
+      }
+    }
+  } catch (e) {
+    console.error("Failed to save UI font size:", e);
+  }
+}
+
+/**
+ * Saved UI font size override, or `null` if using the theme default.
+ */
+export function getSavedUIFontSize(): string | null {
+  try {
+    const s = localStorage.getItem(UI_FONT_SIZE_STORAGE_KEY);
     return s && s.trim() ? s : null;
   } catch {
     return null;

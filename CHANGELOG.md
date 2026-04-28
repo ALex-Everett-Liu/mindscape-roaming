@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-04-29
+
+### Added
+
+- **Settings → Typography**: Font size adjustment with preset options (Small 13px, Normal 15px, Large 17px, Extra Large 19px)
+- Font size preference persisted in `localStorage` (`outliner_uiFontSize`) and re-applied after theme changes
+
 ## [0.2.2] - 2026-04-17
 
 ### Added
@@ -235,7 +242,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7.1...v0.2.0
 [0.1.7.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.1.7...v0.1.7.1
