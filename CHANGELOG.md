@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Settings → Typography**: Custom font size value now correctly shown in the dropdown label and custom input field on initial load
 - **Search performance**: Added 200ms debounce to search input to prevent excessive RPC calls and database queries during typing
 
 ## [0.2.2] - 2026-04-17

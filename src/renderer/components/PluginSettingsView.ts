@@ -31,7 +31,10 @@ export function PluginSettingsView({ onClose }: Props) {
   const [selectedTheme, setSelectedTheme] = useState(getCurrentTheme());
   const [selectedUIFont, setSelectedUIFont] = useState(() => getSavedUIFont() ?? "");
   const [selectedUIFontSize, setSelectedUIFontSize] = useState(() => getSavedUIFontSize() ?? "15px");
-  const [customFontSize, setCustomFontSize] = useState("");
+  const [customFontSize, setCustomFontSize] = useState(() => {
+    const saved = getSavedUIFontSize() ?? "15px";
+    return UI_FONT_SIZE_OPTIONS.some((o) => o.value === saved) ? "" : saved.replace("px", "");
+  });
   const [importExportError, setImportExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -276,7 +279,7 @@ export function PluginSettingsView({ onClose }: Props) {
               ${UI_FONT_SIZE_OPTIONS.map(
                 (o) => html`<option value=${o.value}>${o.label}</option>`
               )}
-              <option value="custom">${selectedUIFontSize === "custom" && customFontSize ? `Custom (${customFontSize}px)` : "Custom..."}</option>
+              <option value="custom">${!UI_FONT_SIZE_OPTIONS.some((o) => o.value === selectedUIFontSize) && customFontSize ? `Custom (${customFontSize}px)` : "Custom..."}</option>
             </select>
             
             ${!UI_FONT_SIZE_OPTIONS.some((o) => o.value === selectedUIFontSize) &&
