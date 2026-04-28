@@ -266,6 +266,7 @@ export function PluginSettingsView({ onClose }: Props) {
                 const v = (e.target as HTMLSelectElement).value;
                 if (v === "custom") {
                   setCustomFontSize(selectedUIFontSize.replace("px", ""));
+                  setSelectedUIFontSize("custom");
                 } else {
                   setSelectedUIFontSize(v);
                   setUIFontSize(v);
@@ -275,7 +276,7 @@ export function PluginSettingsView({ onClose }: Props) {
               ${UI_FONT_SIZE_OPTIONS.map(
                 (o) => html`<option value=${o.value}>${o.label}</option>`
               )}
-              <option value="custom">Custom...</option>
+              <option value="custom">${selectedUIFontSize === "custom" && customFontSize ? `Custom (${customFontSize}px)` : "Custom..."}</option>
             </select>
             
             ${!UI_FONT_SIZE_OPTIONS.some((o) => o.value === selectedUIFontSize) &&
@@ -308,7 +309,7 @@ export function PluginSettingsView({ onClose }: Props) {
               </div>
             `}
             
-            <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}; font-size: ${selectedUIFontSize}`}>
+            <p class="font-preview" style=${`font-family: ${selectedUIFont ? selectedUIFont : "inherit"}; font-size: ${selectedUIFontSize === "custom" ? `${customFontSize}px` : selectedUIFontSize}`}>
               The quick brown fox jumps over the lazy dog. 敏捷的棕狐跳过懒狗。
             </p>
           </div>
