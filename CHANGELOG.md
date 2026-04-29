@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Export plugin** (`core-export`): Export entire outline tree as JSON, OPML, Markdown, or plain text via Command Palette (Ctrl+P → "Export outline as ...") or Settings → Import/Export tab
 
+### Fixed
+
+- **CJK text rendering / garbled Chinese**: Fixed intermittent mojibake in mixed CJK-Latin blocks caused by a font-loading race condition
+  - Changed `font-display: swap` to **`font-display: block`** for all `@font-face` declarations in `src/renderer/styles/fonts.css` — prevents Chromium from rendering CJK text with a missing-glyph fallback while the 13–16 MB LXGW Bright font files are still parsing
+  - Added explicit CJK fallback fonts (`Microsoft YaHei`, `PingFang SC`, `Hiragino Sans GB`) to the `--font-sans` stack in `main.css` and all theme definitions in `themeManager.ts`
+  - Changed `<html lang="en">` to **`<html lang="zh-CN">`** so WebView2 applies correct typographic and fallback heuristics for Chinese content
+
 ## [0.2.3] - 2026-04-29
 
 ### Added
@@ -252,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.0...v0.2.1
