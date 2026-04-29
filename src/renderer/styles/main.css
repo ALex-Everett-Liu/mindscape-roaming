@@ -329,6 +329,7 @@ body {
   min-height: 22px;
   line-height: 1.5;
   word-break: break-word;
+  cursor: text;
 }
 
 .node-editor:empty::before {
