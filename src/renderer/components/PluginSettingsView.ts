@@ -16,6 +16,13 @@ import {
   UI_FONT_SIZE_OPTIONS,
   type ThemeDefinition,
 } from "../theme/themeManager";
+import {
+  exportToJson,
+  exportToMarkdown,
+  exportToPlainText,
+  exportToOpml,
+  triggerDownload,
+} from "../plugins/core-export/exportFormats";
 
 const SETTINGS_EXPORT_VERSION = 2;
 
@@ -36,6 +43,7 @@ export function PluginSettingsView({ onClose }: Props) {
     return UI_FONT_SIZE_OPTIONS.some((o) => o.value === saved) ? "" : saved.replace("px", "");
   });
   const [importExportError, setImportExportError] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -94,6 +102,33 @@ export function PluginSettingsView({ onClose }: Props) {
   const handleImportClick = () => {
     setImportExportError(null);
     fileInputRef.current?.click();
+  };
+
+  const handleOutlineExport = async (format: "json" | "markdown" | "opml" | "txt") => {
+    setExportMessage(null);
+    const res = await api.getFullTree();
+    if (!res.success || !res.data || res.data.length === 0) {
+      setExportMessage("Nothing to export — the outline is empty.");
+      return;
+    }
+    const tree = res.data;
+    let result: { content: string; filename: string; mimeType: string };
+    switch (format) {
+      case "json":
+        result = exportToJson(tree);
+        break;
+      case "markdown":
+        result = exportToMarkdown(tree);
+        break;
+      case "opml":
+        result = exportToOpml(tree);
+        break;
+      case "txt":
+        result = exportToPlainText(tree);
+        break;
+    }
+    triggerDownload(result.content, result.filename, result.mimeType);
+    setExportMessage(`Exported as ${result.filename}`);
   };
 
   const handleImportFile = async (e: Event) => {
@@ -325,6 +360,14 @@ export function PluginSettingsView({ onClose }: Props) {
           <div class="import-export-actions">
             <button class="btn" onClick=${handleExport}>Export settings</button>
             <button class="btn" onClick=${handleImportClick}>Import settings</button>
+          </div>
+          <p class="settings-desc">Export your outline data in various formats.</p>
+          ${exportMessage && html`<p class="settings-import-error" style="color: var(--accent)">${exportMessage}</p>`}
+          <div class="import-export-actions">
+            <button class="btn" onClick=${() => handleOutlineExport("json")}>Export JSON</button>
+            <button class="btn" onClick=${() => handleOutlineExport("markdown")}>Export Markdown</button>
+            <button class="btn" onClick=${() => handleOutlineExport("opml")}>Export OPML</button>
+            <button class="btn" onClick=${() => handleOutlineExport("txt")}>Export TXT</button>
           </div>
         `}
       </div>

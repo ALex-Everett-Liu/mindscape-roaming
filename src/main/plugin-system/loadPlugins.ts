@@ -7,6 +7,7 @@ import coreSettings from "../plugins/core-settings/index";
 import coreKeyboard from "../plugins/core-keyboard/index";
 import coreDragDrop from "../plugins/core-drag-drop/index";
 import coreCommandPalette from "../plugins/core-command-palette/index";
+import coreExport from "../plugins/core-export/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
@@ -15,6 +16,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-keyboard": coreKeyboard,
   "core-drag-drop": coreDragDrop,
   "core-command-palette": coreCommandPalette,
+  "core-export": coreExport,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */
