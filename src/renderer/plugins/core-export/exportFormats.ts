@@ -70,11 +70,12 @@ export function exportToPlainText(tree: OutlineTreeNode[]): { content: string; f
   };
 }
 
-function treeToOpml(nodes: OutlineTreeNode[]): string {
+function treeToOpml(nodes: OutlineTreeNode[], depth = 0): string {
+  const indent = "  ".repeat(depth + 2); // base 4 spaces inside <body>
   return nodes
     .map((node) => {
-      const childrenXml = node.children.length > 0 ? treeToOpml(node.children) : "";
-      return `    <outline text="${escapeXml(node.content)}">${childrenXml ? "\n" + childrenXml + "\n    " : ""}</outline>`;
+      const childrenXml = node.children.length > 0 ? treeToOpml(node.children, depth + 1) : "";
+      return `${indent}<outline text="${escapeXml(node.content)}">${childrenXml ? "\n" + childrenXml + "\n" + indent : ""}</outline>`;
     })
     .join("\n");
 }
