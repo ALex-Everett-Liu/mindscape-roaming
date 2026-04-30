@@ -67,6 +67,32 @@ const plugin: MainPlugin = {
       { noPrefix: true }
     );
 
+    ctx.registerRpcHandler(
+      "getBacklinkCounts",
+      (): { success: boolean; data?: Record<string, number>; error?: string } => {
+        try {
+          const rows = db
+            .query("SELECT content FROM outline_nodes WHERE content LIKE '%((%)%)%' AND is_deleted = 0")
+            .all() as { content: string }[];
+
+          const counts: Record<string, number> = {};
+          const regex = /\(\(([^\s)]+)\)\)/g;
+          for (const row of rows) {
+            let m: RegExpExecArray | null;
+            regex.lastIndex = 0;
+            while ((m = regex.exec(row.content)) !== null) {
+              counts[m[1]] = (counts[m[1]] || 0) + 1;
+            }
+          }
+
+          return { success: true, data: counts };
+        } catch (e) {
+          return { success: false, error: String(e) };
+        }
+      },
+      { noPrefix: true }
+    );
+
     ctx.log("Block reference plugin ready");
   },
 };

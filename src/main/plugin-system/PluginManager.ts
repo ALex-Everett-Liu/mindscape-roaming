@@ -143,6 +143,7 @@ export class PluginManager {
         search: (params: SearchParams) => wrap("search", r.get("search"))(params),
         resolveBlockRef: (params: { id: string }) => wrap("resolveBlockRef", r.get("resolveBlockRef"))(params),
         getBlockBacklinks: (params: { id: string }) => wrap("getBlockBacklinks", r.get("getBlockBacklinks"))(params),
+        getBacklinkCounts: (params?: Record<string, never>) => wrap("getBacklinkCounts", r.get("getBacklinkCounts"))(params),
 
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),

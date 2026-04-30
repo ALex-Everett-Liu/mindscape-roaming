@@ -132,6 +132,26 @@ const REF_CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.backlink-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #4fc3f7);
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  margin-left: 4px;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+}
+.backlink-badge:hover {
+  filter: brightness(1.2);
+}
 `;
 
 let styleEl: HTMLStyleElement | null = null;
@@ -143,6 +163,7 @@ let unsubStore: (() => void) | null = null;
 let lastZoomedNodeId: string | null | undefined = undefined;
 let backlinksCollapsed = false;
 const contentCache = new Map<string, string>();
+let backlinkCountCache: Record<string, number> = {};
 
 /* ─── CSS injection ─── */
 
@@ -193,6 +214,61 @@ function hideTooltip(): void {
   if (tooltipEl) {
     tooltipEl.remove();
     tooltipEl = null;
+  }
+}
+
+/* ─── Backlink count badges ─── */
+
+async function fetchBacklinkCounts(): Promise<void> {
+  try {
+    const res = await api.getBacklinkCounts();
+    if (res.success && res.data) {
+      backlinkCountCache = res.data;
+      annotateBacklinkBadges();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function annotateBacklinkBadges(): void {
+  const nodes = document.querySelectorAll<HTMLElement>(".outline-node[data-node-id]");
+  for (const nodeEl of nodes) {
+    const id = nodeEl.dataset.nodeId;
+    if (!id) continue;
+
+    const row = nodeEl.querySelector<HTMLElement>(".node-row");
+    if (!row) continue;
+
+    const existing = row.querySelector<HTMLElement>(".backlink-badge");
+    const count = backlinkCountCache[id] || 0;
+
+    if (count === 0) {
+      if (existing) existing.remove();
+      continue;
+    }
+
+    if (existing) {
+      existing.textContent = String(count);
+      continue;
+    }
+
+    const badge = document.createElement("span");
+    badge.className = "backlink-badge";
+    badge.textContent = String(count);
+    badge.title = `${count} linked reference${count > 1 ? "s" : ""}`;
+    badge.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void store.zoomIn(id);
+    });
+
+    // Insert after the node-editor
+    const editor = row.querySelector<HTMLElement>(".node-editor");
+    if (editor) {
+      editor.after(badge);
+    } else {
+      row.appendChild(badge);
+    }
   }
 }
 
@@ -431,6 +507,7 @@ const plugin: RendererPlugin = {
 
     // Transform any editors already in the DOM
     scanAndTransform();
+    void fetchBacklinkCounts();
 
     // Watch for newly added editors (tree re-renders, new nodes, etc.)
     observer = new MutationObserver((mutations) => {
@@ -439,6 +516,7 @@ const plugin: RendererPlugin = {
       );
       if (shouldScan) {
         scanAndTransform();
+        annotateBacklinkBadges();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -485,6 +563,8 @@ const plugin: RendererPlugin = {
         lastZoomedNodeId = state.zoomedNodeId;
         void updateBacklinksPanel(state.zoomedNodeId);
       }
+      // Tree re-rendered (new nodes loaded) — refresh badges
+      void fetchBacklinkCounts();
     });
     void updateBacklinksPanel(store.getState().zoomedNodeId);
 
@@ -519,6 +599,8 @@ const plugin: RendererPlugin = {
     for (const editor of getEditors()) {
       unwrapRefs(editor);
     }
+
+    document.querySelectorAll(".backlink-badge").forEach((el) => el.remove());
   },
 };
 
