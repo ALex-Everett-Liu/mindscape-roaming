@@ -6,6 +6,18 @@ import { api } from "../../rpc/api";
 
 const BLOCK_REF_REGEX = /\(\(([^\s)]+)\)\)/g;
 
+function showCopyToast(message: string): void {
+  const el = document.createElement("div");
+  el.className = "copy-toast";
+  el.textContent = message;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  }, 2000);
+}
+
 const REF_CSS = `
 .block-ref-wrapper {
   display: inline;
@@ -57,6 +69,7 @@ const REF_CSS = `
 let styleEl: HTMLStyleElement | null = null;
 let observer: MutationObserver | null = null;
 let tooltipEl: HTMLDivElement | null = null;
+let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 const contentCache = new Map<string, string>();
 
 /* ─── CSS injection ─── */
@@ -289,14 +302,34 @@ const plugin: RendererPlugin = {
     document.addEventListener("focusin", handleFocusIn);
     document.addEventListener("focusout", handleFocusOut);
 
+    keydownHandler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+        const target = e.target as HTMLElement | null;
+        if (!target?.classList.contains("node-editor")) return;
+        const nodeId = target.dataset.nodeId;
+        if (!nodeId) return;
+        e.preventDefault();
+        void navigator.clipboard.writeText(nodeId).then(() => {
+          showCopyToast(`Copied block ID: ${nodeId}`);
+        });
+      }
+    };
+    document.addEventListener("keydown", keydownHandler);
+
     ctx.registerCommand({
-      id: "jump-to-block-ref",
-      name: "Jump to Block Reference",
+      id: "copy-block-id",
+      name: "Copy Block ID",
+      shortcut: "Ctrl+Shift+C",
       category: "Navigation",
-      keywords: ["block", "reference", "jump", "ref"],
+      keywords: ["block", "reference", "copy", "id", "ref"],
       execute: () => {
-        // Discoverability only — actual jumping is done by clicking the reference.
-        // A future enhancement could open a palette of references in the current zoom.
+        const target = document.activeElement as HTMLElement | null;
+        if (!target?.classList.contains("node-editor")) return;
+        const nodeId = target.dataset.nodeId;
+        if (!nodeId) return;
+        void navigator.clipboard.writeText(nodeId).then(() => {
+          showCopyToast(`Copied block ID: ${nodeId}`);
+        });
       },
     });
 
@@ -314,6 +347,10 @@ const plugin: RendererPlugin = {
 
     document.removeEventListener("focusin", handleFocusIn);
     document.removeEventListener("focusout", handleFocusOut);
+    if (keydownHandler) {
+      document.removeEventListener("keydown", keydownHandler);
+      keydownHandler = null;
+    }
 
     for (const editor of getEditors()) {
       unwrapRefs(editor);

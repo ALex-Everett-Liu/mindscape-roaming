@@ -6,6 +6,18 @@ import { NodeEditor } from "./NodeEditor";
 import { OutlineTree } from "./OutlineTree";
 import { dragDropEnabled } from "../plugin-system/dragDropPluginState";
 
+function showCopyToast(message: string): void {
+  const el = document.createElement("div");
+  el.className = "copy-toast";
+  el.textContent = message;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  }, 2000);
+}
+
 interface Props {
   node: OutlineTreeNode;
   focusedNodeId: string | null;
@@ -22,6 +34,17 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
     (e: MouseEvent) => {
       e.stopPropagation();
       void store.zoomIn(node.id);
+    },
+    [node.id]
+  );
+
+  const handleBulletContextMenu = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void navigator.clipboard.writeText(node.id).then(() => {
+        showCopyToast(`Copied block ID: ${node.id}`);
+      });
     },
     [node.id]
   );
@@ -60,8 +83,9 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
         <button
           class="bullet ${hasChildren ? "has-children" : ""}"
           onClick=${handleBulletClick}
-          aria-label="Focus on this node (show subtree)"
-          title="Focus on this node (show subtree)"
+          onContextMenu=${handleBulletContextMenu}
+          aria-label="Focus on this node. Right-click to copy block ID."
+          title="Focus on this node. Right-click to copy block ID."
         >
           •
         </button>
