@@ -21,6 +21,7 @@ import {
   exportToMarkdown,
   exportToPlainText,
   exportToOpml,
+  exportToHtml,
   triggerDownload,
 } from "../plugins/core-export/exportFormats";
 
@@ -104,7 +105,7 @@ export function PluginSettingsView({ onClose }: Props) {
     fileInputRef.current?.click();
   };
 
-  const handleOutlineExport = async (format: "json" | "markdown" | "opml" | "txt") => {
+  const handleOutlineExport = async (format: "json" | "markdown" | "opml" | "txt" | "html") => {
     setExportMessage(null);
     const res = await api.getFullTree();
     if (!res.success || !res.data || res.data.length === 0) {
@@ -125,6 +126,9 @@ export function PluginSettingsView({ onClose }: Props) {
         break;
       case "txt":
         result = exportToPlainText(tree);
+        break;
+      case "html":
+        result = exportToHtml(tree);
         break;
     }
     triggerDownload(result.content, result.filename, result.mimeType);
@@ -368,6 +372,7 @@ export function PluginSettingsView({ onClose }: Props) {
             <button class="btn" onClick=${() => handleOutlineExport("markdown")}>Export Markdown</button>
             <button class="btn" onClick=${() => handleOutlineExport("opml")}>Export OPML</button>
             <button class="btn" onClick=${() => handleOutlineExport("txt")}>Export TXT</button>
+            <button class="btn" onClick=${() => handleOutlineExport("html")}>Export HTML</button>
           </div>
         `}
       </div>

@@ -7,13 +7,14 @@ import {
   exportToMarkdown,
   exportToPlainText,
   exportToOpml,
+  exportToHtml,
   triggerDownload,
 } from "./exportFormats";
 
 let ctxRef: RendererPluginContext | null = null;
 
 async function doExport(
-  format: "json" | "markdown" | "txt" | "opml"
+  format: "json" | "markdown" | "txt" | "opml" | "html"
 ): Promise<void> {
   const res = await api.getFullTree();
   if (!res.success || !res.data || res.data.length === 0) {
@@ -36,6 +37,9 @@ async function doExport(
       break;
     case "opml":
       result = exportToOpml(tree);
+      break;
+    case "html":
+      result = exportToHtml(tree);
       break;
   }
 
@@ -78,6 +82,14 @@ const plugin: RendererPlugin = {
       category: "Data",
       keywords: ["export", "text", "txt", "plain", "save", "download"],
       execute: () => doExport("txt"),
+    });
+
+    ctx.registerCommand({
+      id: "export-outline-html",
+      name: "Export outline as HTML",
+      category: "Data",
+      keywords: ["export", "html", "web", "save", "download"],
+      execute: () => doExport("html"),
     });
   },
 

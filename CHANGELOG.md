@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Export plugin** (`core-export`): Export entire outline tree as JSON, OPML, Markdown, or plain text via Command Palette (Ctrl+P → "Export outline as ...") or Settings → Import/Export tab
+- **Export plugin** (`core-export`): Export entire outline tree as JSON, OPML, Markdown, plain text, or styled HTML via Command Palette (Ctrl+P → "Export outline as ...") or Settings → Import/Export tab
 
 ### Fixed
 

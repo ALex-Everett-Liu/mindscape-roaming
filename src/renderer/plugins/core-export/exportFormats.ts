@@ -100,6 +100,99 @@ ${body}
   };
 }
 
+function treeToHtml(nodes: OutlineTreeNode[]): string {
+  if (nodes.length === 0) return "";
+  const items = nodes
+    .map((node) => {
+      const childrenHtml = node.children.length > 0 ? treeToHtml(node.children) : "";
+      return `<li>${escapeXml(node.content)}${childrenHtml}</li>`;
+    })
+    .join("\n");
+  return `<ul>\n${items}\n</ul>`;
+}
+
+export function exportToHtml(tree: OutlineTreeNode[]): { content: string; filename: string; mimeType: string } {
+  const body = treeToHtml(tree);
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mindscape Export</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --bg-secondary: #16213e;
+      --text: #e0e0e0;
+      --text-muted: #888;
+      --accent: #4fc3f7;
+      --border: #2a2a4a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 40px 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    li {
+      position: relative;
+      padding: 4px 0 4px 20px;
+      margin: 2px 0;
+      border-radius: 4px;
+    }
+    li:hover {
+      background: rgba(79, 195, 247, 0.06);
+    }
+    li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      top: 4px;
+      color: var(--accent);
+      font-size: 18px;
+      line-height: 1;
+    }
+    ul ul {
+      padding-left: 16px;
+      margin-top: 2px;
+    }
+    .meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mindscape Export</h1>
+  <p class="meta">Exported on ${new Date().toLocaleString()}</p>
+  ${body}
+</body>
+</html>`;
+  return {
+    content: html,
+    filename: `mindscape-export-${timestamp()}.html`,
+    mimeType: "text/html",
+  };
+}
+
 export function triggerDownload(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
