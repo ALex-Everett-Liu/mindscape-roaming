@@ -162,6 +162,7 @@ let backlinksPanel: HTMLDivElement | null = null;
 let unsubStore: (() => void) | null = null;
 let lastZoomedNodeId: string | null | undefined = undefined;
 let backlinksCollapsed = false;
+let annotatingBadges = false;
 const contentCache = new Map<string, string>();
 let backlinkCountCache: Record<string, number> = {};
 
@@ -232,26 +233,32 @@ async function fetchBacklinkCounts(): Promise<void> {
 }
 
 function annotateBacklinkBadges(): void {
-  const nodes = document.querySelectorAll<HTMLElement>(".outline-node[data-node-id]");
-  for (const nodeEl of nodes) {
-    const id = nodeEl.dataset.nodeId;
-    if (!id) continue;
+  if (annotatingBadges) return;
+  annotatingBadges = true;
+  try {
+    const nodes = document.querySelectorAll<HTMLElement>(".outline-node[data-node-id]");
+    for (const nodeEl of nodes) {
+      const id = nodeEl.dataset.nodeId;
+      if (!id) continue;
 
-    const row = nodeEl.querySelector<HTMLElement>(".node-row");
-    if (!row) continue;
+      const row = nodeEl.querySelector<HTMLElement>(".node-row");
+      if (!row) continue;
 
-    const existing = row.querySelector<HTMLElement>(".backlink-badge");
-    const count = backlinkCountCache[id] || 0;
+      const existing = row.querySelector<HTMLElement>(".backlink-badge");
+      const count = backlinkCountCache[id] || 0;
 
-    if (count === 0) {
-      if (existing) existing.remove();
-      continue;
-    }
+      if (count === 0) {
+        if (existing) existing.remove();
+        continue;
+      }
 
-    if (existing) {
-      existing.textContent = String(count);
-      continue;
-    }
+      if (existing) {
+        const text = String(count);
+        if (existing.textContent !== text) {
+          existing.textContent = text;
+        }
+        continue;
+      }
 
     const badge = document.createElement("span");
     badge.className = "backlink-badge";
@@ -262,13 +269,16 @@ function annotateBacklinkBadges(): void {
       void store.zoomIn(id);
     });
 
-    // Insert after the node-editor
-    const editor = row.querySelector<HTMLElement>(".node-editor");
-    if (editor) {
-      editor.after(badge);
-    } else {
-      row.appendChild(badge);
+      // Insert after the node-editor
+      const editor = row.querySelector<HTMLElement>(".node-editor");
+      if (editor) {
+        editor.after(badge);
+      } else {
+        row.appendChild(badge);
+      }
     }
+  } finally {
+    annotatingBadges = false;
   }
 }
 

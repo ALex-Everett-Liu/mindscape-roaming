@@ -7,22 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.2] - 2026-04-30
-
-### Added
-
-- **Backlink count badges on every node**: Each outline node now displays a small accent-colored badge (e.g. `3`) when other blocks reference it. The badge appears next to the node content regardless of zoom state — scan the tree at a glance to see which blocks are referenced
-- **`getBacklinkCounts` RPC**: Single-query endpoint that builds a frequency map of all `((id))` references across the entire database
-
 ## [0.3.1] - 2026-04-30
 
 ### Added
 
 - **Linked References panel** (backlinks): When zoomed into a block, a bottom panel shows how many other blocks reference it (e.g. `3 Linked References`). Click the header to expand/collapse; click any item to jump to the referencing block
 - **`getBlockBacklinks` RPC**: Main-process query that searches `content LIKE '%((id))%'` to find all nodes referencing a given block ID
+- **Backlink count badges on every node**: Each outline node now displays a small accent-colored badge (e.g. `3`) when other blocks reference it. The badge appears next to the node content regardless of zoom state — scan the tree at a glance to see which blocks are referenced
+- **`getBacklinkCounts` RPC**: Single-query endpoint that builds a frequency map of all `((id))` references across the entire database
 
 ### Fixed
 
+- **App startup hang (critical)**: Fixed an infinite mutation observer loop caused by `annotateBacklinkBadges()` unconditionally writing `textContent` on existing badges. Setting `textContent` replaces the text DOM node, which fires a new `childList` mutation, which triggers `annotateBacklinkBadges()` again — repeating forever and freezing the renderer. Fixed by adding a re-entrant guard flag and only updating `textContent` when the count value actually changes
+- **Backlink count SQL query**: The `LIKE` pattern `'%((%)%)%'` required three closing parens, so `((id))` references never matched. Changed to `'%((%))%'` so the query correctly finds blocks containing references
 - **Block reference click-to-jump**: Changed from `click` to `mousedown` with `preventDefault()` to prevent the browser from shifting focus into the `contenteditable` editor before the jump happens — clicking a reference now navigates immediately without entering edit mode
 - **`resolveBlockRef` RPC wiring**: The handler was registered by the plugin but missing from `PluginManager.buildRpcHandlers()`, causing hover tooltips to show `(error)` instead of the referenced block's content
 
@@ -310,8 +307,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...HEAD
-[0.3.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...v0.3.2
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...HEAD
 [0.3.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...v0.2.5

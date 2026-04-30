@@ -72,7 +72,7 @@ const plugin: MainPlugin = {
       (): { success: boolean; data?: Record<string, number>; error?: string } => {
         try {
           const rows = db
-            .query("SELECT content FROM outline_nodes WHERE content LIKE '%((%)%)%' AND is_deleted = 0")
+            .query("SELECT content FROM outline_nodes WHERE content LIKE '%((%))%' AND is_deleted = 0")
             .all() as { content: string }[];
 
           const counts: Record<string, number> = {};
