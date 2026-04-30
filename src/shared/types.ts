@@ -20,6 +20,10 @@ export interface OutlineTreeNode extends OutlineNode {
   depth: number;
 }
 
+export interface SearchResultItem extends OutlineNode {
+  breadcrumb: string[];
+}
+
 // ─── RPC Request/Response Types ──────────────────────
 
 export interface CreateNodeParams {

@@ -1,4 +1,4 @@
-import type { OutlineTreeNode, OutlineNode } from "../../shared/types";
+import type { OutlineTreeNode, OutlineNode, SearchResultItem } from "../../shared/types";
 import { api } from "../rpc/api";
 import { saveStateManager } from "./saveStateManager";
 
@@ -20,7 +20,7 @@ export interface AppState {
   breadcrumbs: OutlineNode[];
   focusedNodeId: string | null;
   searchQuery: string;
-  searchResults: OutlineNode[];
+  searchResults: SearchResultItem[];
   isSearching: boolean;
   searchAvailable: boolean;
   loading: boolean;

@@ -1,6 +1,7 @@
 import type {
   OutlineNode,
   OutlineTreeNode,
+  SearchResultItem,
   CreateNodeParams,
   UpdateNodeParams,
   MoveNodeParams,
@@ -19,7 +20,7 @@ type OutlinerRpcRequest = {
   getSubtree: (params: GetSubtreeParams) => Promise<RpcResult<OutlineTreeNode[]>>;
   getNode: (params: { id: string }) => Promise<RpcResult<OutlineNode>>;
   getAncestors: (params: { nodeId: string }) => Promise<RpcResult<OutlineNode[]>>;
-  search: (params: SearchParams) => Promise<RpcResult<OutlineNode[]>>;
+  search: (params: SearchParams) => Promise<RpcResult<SearchResultItem[]>>;
   getStats: (params?: Record<string, never>) => Promise<RpcResult<{ nodeCount: number }>>;
   createNode: (params: CreateNodeParams) => Promise<RpcResult<OutlineNode>>;
   updateNode: (params: UpdateNodeParams) => Promise<RpcResult<OutlineNode>>;

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-04-29
+
+### Added
+
+- **Search results breadcrumb context**: Each result now shows its 1–2 ancestor levels (e.g. `项目A > 后端开发`) so identical content in different branches is distinguishable
+- **Search match highlighting**: Query tokens are highlighted with a soft yellow background (`<mark>`) inside each result
+- **Keyboard navigation for search results**: `↑/↓` cycles through results with auto-scroll; `Enter` zooms to the selected node; `Escape` clears the search
+- **Search empty state**: "No matches found" message when query returns zero results
+
+### Changed
+
+- **Empty search results** (`(empty)`): Styled as muted italic text to reduce visual noise
+
 ## [0.2.4] - 2026-04-29
 
 ### Added
@@ -259,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.1...v0.2.2

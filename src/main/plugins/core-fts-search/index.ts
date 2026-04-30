@@ -1,7 +1,7 @@
 import type { MainPlugin } from "../../plugin-system/PluginManifest";
 import type { MainPluginContext } from "../../plugin-system/PluginContext";
 import { manifest } from "./manifest";
-import type { OutlineNode } from "../../../shared/types";
+import type { SearchResultItem } from "../../../shared/types";
 import type { SearchParams } from "../../../shared/types";
 
 const plugin: MainPlugin = {
@@ -71,15 +71,69 @@ const plugin: MainPlugin = {
           ctx.log("exact match returned", rows.length, "rows");
         }
 
-        const data = rows.map((r) => ({
-          id: r.id,
-          content: r.content,
-          parent_id: r.parent_id,
-          position: r.position,
-          is_expanded: Boolean(r.is_expanded),
-          created_at: r.created_at,
-          updated_at: r.updated_at,
-        })) as OutlineNode[];
+        // Collect parent ids for breadcrumb lookup
+        const parentIds = new Set<string>();
+        for (const r of rows) {
+          if (r.parent_id) parentIds.add(r.parent_id as string);
+        }
+
+        const parentMap = new Map<string, { content: string; parent_id: string | null }>();
+        if (parentIds.size > 0) {
+          const placeholders = Array(parentIds.size).fill("?").join(",");
+          const parents = db
+            .query(
+              `SELECT id, content, parent_id FROM outline_nodes WHERE id IN (${placeholders}) AND is_deleted = 0`
+            )
+            .all(...parentIds) as Record<string, unknown>[];
+          for (const p of parents) {
+            parentMap.set(p.id as string, {
+              content: p.content as string,
+              parent_id: p.parent_id as string | null,
+            });
+          }
+        }
+
+        const grandparentIds = new Set<string>();
+        for (const p of parentMap.values()) {
+          if (p.parent_id) grandparentIds.add(p.parent_id);
+        }
+
+        const grandparentMap = new Map<string, string>();
+        if (grandparentIds.size > 0) {
+          const placeholders = Array(grandparentIds.size).fill("?").join(",");
+          const grandparents = db
+            .query(
+              `SELECT id, content FROM outline_nodes WHERE id IN (${placeholders}) AND is_deleted = 0`
+            )
+            .all(...grandparentIds) as Record<string, unknown>[];
+          for (const g of grandparents) {
+            grandparentMap.set(g.id as string, g.content as string);
+          }
+        }
+
+        const data = rows.map((r) => {
+          const breadcrumb: string[] = [];
+          const pid = r.parent_id as string | null;
+          if (pid && parentMap.has(pid)) {
+            const parent = parentMap.get(pid)!;
+            const gpid = parent.parent_id;
+            if (gpid && grandparentMap.has(gpid)) {
+              breadcrumb.push(grandparentMap.get(gpid)!);
+            }
+            breadcrumb.push(parent.content);
+          }
+
+          return {
+            id: r.id,
+            content: r.content,
+            parent_id: r.parent_id,
+            position: r.position,
+            is_expanded: Boolean(r.is_expanded),
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+            breadcrumb,
+          };
+        }) as SearchResultItem[];
 
         return { success: true, data };
       } catch (e) {
