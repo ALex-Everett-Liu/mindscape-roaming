@@ -64,12 +64,84 @@ const REF_CSS = `
   color: var(--text-muted, #888);
   font-style: italic;
 }
+.backlinks-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg, #1a1a2e);
+  border-top: 1px solid var(--border, #333);
+  z-index: 50;
+  font-size: 13px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.backlinks-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  background: var(--bg, #1a1a2e);
+  border-bottom: 1px solid var(--border, #333);
+}
+.backlinks-count {
+  background: var(--accent, #4fc3f7);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+.backlinks-label {
+  color: var(--text-muted, #888);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+.backlinks-toggle {
+  color: var(--text-muted, #888);
+  font-size: 10px;
+}
+.backlinks-list {
+  padding: 4px 0;
+}
+.backlink-item {
+  padding: 6px 16px 6px 32px;
+  color: var(--text, #e0e0e0);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.1s;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.backlink-item:hover {
+  background: var(--focus-bg, rgba(255,255,255,0.05));
+  border-left-color: var(--accent, #4fc3f7);
+}
+.backlink-content {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 `;
 
 let styleEl: HTMLStyleElement | null = null;
 let observer: MutationObserver | null = null;
 let tooltipEl: HTMLDivElement | null = null;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+let backlinksPanel: HTMLDivElement | null = null;
+let unsubStore: (() => void) | null = null;
+let lastZoomedNodeId: string | null | undefined = undefined;
+let backlinksCollapsed = false;
 const contentCache = new Map<string, string>();
 
 /* ─── CSS injection ─── */
@@ -122,6 +194,78 @@ function hideTooltip(): void {
     tooltipEl.remove();
     tooltipEl = null;
   }
+}
+
+/* ─── Backlinks panel ─── */
+
+function createBacklinksPanel(): HTMLDivElement {
+  const panel = document.createElement("div");
+  panel.className = "backlinks-panel";
+  panel.style.display = "none";
+  return panel;
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function updateBacklinksPanel(zoomedNodeId: string | null): Promise<void> {
+  if (!backlinksPanel) return;
+
+  if (!zoomedNodeId) {
+    backlinksPanel.style.display = "none";
+    backlinksPanel.innerHTML = "";
+    return;
+  }
+
+  const res = await api.getBlockBacklinks(zoomedNodeId);
+  if (!res.success || !res.data || res.data.length === 0) {
+    backlinksPanel.style.display = "none";
+    backlinksPanel.innerHTML = "";
+    return;
+  }
+
+  const nodes = res.data;
+  const count = nodes.length;
+
+  backlinksPanel.style.display = "block";
+  backlinksPanel.innerHTML = `
+    <div class="backlinks-header">
+      <span class="backlinks-count">${count}</span>
+      <span class="backlinks-label">Linked Reference${count > 1 ? "s" : ""}</span>
+      <span class="backlinks-toggle">${backlinksCollapsed ? "▶" : "▼"}</span>
+    </div>
+    <div class="backlinks-list" style="${backlinksCollapsed ? "display:none" : ""}">
+      ${nodes
+        .map(
+          (node) => `
+        <div class="backlink-item" data-node-id="${node.id}">
+          <span class="backlink-content">${escapeHtml(node.content) || "(empty)"}</span>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
+
+  const header = backlinksPanel.querySelector(".backlinks-header");
+  header?.addEventListener("click", () => {
+    backlinksCollapsed = !backlinksCollapsed;
+    const list = backlinksPanel!.querySelector(".backlinks-list") as HTMLElement | null;
+    const toggle = backlinksPanel!.querySelector(".backlinks-toggle");
+    if (list) list.style.display = backlinksCollapsed ? "none" : "block";
+    if (toggle) toggle.textContent = backlinksCollapsed ? "▶" : "▼";
+  });
+
+  backlinksPanel.querySelectorAll(".backlink-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const nodeId = (item as HTMLElement).dataset.nodeId;
+      if (nodeId) void store.zoomIn(nodeId);
+    });
+  });
 }
 
 /* ─── DOM helpers ─── */
@@ -235,7 +379,7 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
       span.textContent = `(( ${id} ))`;
       span.contentEditable = "false";
 
-      span.addEventListener("click", (e) => {
+      span.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
         void store.zoomIn(id);
@@ -333,6 +477,17 @@ const plugin: RendererPlugin = {
       },
     });
 
+    backlinksPanel = createBacklinksPanel();
+    document.body.appendChild(backlinksPanel);
+
+    unsubStore = store.subscribe((state) => {
+      if (state.zoomedNodeId !== lastZoomedNodeId) {
+        lastZoomedNodeId = state.zoomedNodeId;
+        void updateBacklinksPanel(state.zoomedNodeId);
+      }
+    });
+    void updateBacklinksPanel(store.getState().zoomedNodeId);
+
     console.log("[third-party-block-ref] renderer ready");
   },
 
@@ -350,6 +505,15 @@ const plugin: RendererPlugin = {
     if (keydownHandler) {
       document.removeEventListener("keydown", keydownHandler);
       keydownHandler = null;
+    }
+
+    if (unsubStore) {
+      unsubStore();
+      unsubStore = null;
+    }
+    if (backlinksPanel) {
+      backlinksPanel.remove();
+      backlinksPanel = null;
     }
 
     for (const editor of getEditors()) {

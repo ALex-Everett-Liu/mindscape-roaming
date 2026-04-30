@@ -40,6 +40,33 @@ const plugin: MainPlugin = {
       { noPrefix: true }
     );
 
+    ctx.registerRpcHandler(
+      "getBlockBacklinks",
+      (params: { id: string }): { success: boolean; data?: OutlineNode[]; error?: string } => {
+        try {
+          const pattern = `%((${params.id}))%`;
+          const rows = db
+            .query("SELECT * FROM outline_nodes WHERE content LIKE ? AND is_deleted = 0")
+            .all(pattern) as Record<string, unknown>[];
+
+          const data = rows.map((r) => ({
+            id: r.id as string,
+            content: r.content as string,
+            parent_id: (r.parent_id as string | null) ?? null,
+            position: r.position as number,
+            is_expanded: Boolean(r.is_expanded),
+            created_at: r.created_at as number,
+            updated_at: r.updated_at as number,
+          }));
+
+          return { success: true, data };
+        } catch (e) {
+          return { success: false, error: String(e) };
+        }
+      },
+      { noPrefix: true }
+    );
+
     ctx.log("Block reference plugin ready");
   },
 };

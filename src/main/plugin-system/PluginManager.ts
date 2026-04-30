@@ -141,6 +141,8 @@ export class PluginManager {
         outdentNode: (params: OutdentNodeParams) => wrap("outdentNode", r.get("outdentNode"))(params),
         deleteNode: (params: DeleteNodeParams) => wrap("deleteNode", r.get("deleteNode"))(params),
         search: (params: SearchParams) => wrap("search", r.get("search"))(params),
+        resolveBlockRef: (params: { id: string }) => wrap("resolveBlockRef", r.get("resolveBlockRef"))(params),
+        getBlockBacklinks: (params: { id: string }) => wrap("getBlockBacklinks", r.get("getBlockBacklinks"))(params),
 
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),
