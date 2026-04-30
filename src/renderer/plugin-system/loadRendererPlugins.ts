@@ -11,18 +11,20 @@ import coreKeyboard from "../plugins/core-keyboard";
 import coreDragDrop from "../plugins/core-drag-drop";
 import coreCommandPalette from "../plugins/core-command-palette";
 import coreExport from "../plugins/core-export";
+import thirdPartyBlockRef from "../plugins/third-party-block-ref";
 import { store } from "../state/store";
 import { CoreEvents } from "../../shared/events";
 import { api } from "../rpc/api";
 import type { PluginManifest } from "../../shared/plugin-types";
 
-type RendererPluginId = "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export";
+type RendererPluginId = "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export" | "third-party-block-ref";
 
 const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
   "core-keyboard": coreKeyboard.manifest,
   "core-drag-drop": coreDragDrop.manifest,
   "core-command-palette": coreCommandPalette.manifest,
   "core-export": coreExport.manifest,
+  "third-party-block-ref": thirdPartyBlockRef.manifest,
 };
 
 const RENDERER_PLUGINS: Record<
@@ -33,6 +35,7 @@ const RENDERER_PLUGINS: Record<
   "core-drag-drop": coreDragDrop,
   "core-command-palette": coreCommandPalette,
   "core-export": coreExport,
+  "third-party-block-ref": thirdPartyBlockRef,
 };
 
 let eventBus: EventBus | null = null;
@@ -98,7 +101,7 @@ export async function loadRendererPlugins(): Promise<void> {
     res.data.filter((p) => p.enabled).map((p) => p.id as RendererPluginId)
   );
 
-  for (const id of ["core-keyboard", "core-drag-drop", "core-command-palette", "core-export"] as const) {
+  for (const id of ["core-keyboard", "core-drag-drop", "core-command-palette", "core-export", "third-party-block-ref"] as const) {
     if (enabled.has(id)) {
       await loadPlugin(id);
     } else {

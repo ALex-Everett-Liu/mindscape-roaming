@@ -8,6 +8,7 @@ import coreKeyboard from "../plugins/core-keyboard/index";
 import coreDragDrop from "../plugins/core-drag-drop/index";
 import coreCommandPalette from "../plugins/core-command-palette/index";
 import coreExport from "../plugins/core-export/index";
+import thirdPartyBlockRef from "../plugins/third-party-block-ref/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
@@ -17,6 +18,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-drag-drop": coreDragDrop,
   "core-command-palette": coreCommandPalette,
   "core-export": coreExport,
+  "third-party-block-ref": thirdPartyBlockRef,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */
