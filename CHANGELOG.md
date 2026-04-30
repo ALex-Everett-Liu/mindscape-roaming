@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.1] - 2026-04-30
-
-### Added
-
-- **Copy block ID**: Right-click any bullet (•) to copy that block's UUID to the clipboard — a toast notification confirms the copy
-- **Keyboard shortcut for copying block ID**: `Ctrl+Shift+C` (or `Cmd+Shift+C`) when focused inside a node editor copies the current block's ID
-
 ## [0.3.0] - 2026-04-30
 
 ### Added
@@ -24,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Click to jump**: Clicking a reference zooms directly to the original block via `store.zoomIn()`
   - **Bidirectional plugin architecture**: Separate main-process RPC handler (`resolveBlockRef`) and renderer-process DOM observer with `MutationObserver`, `focusin`/`focusout` event delegation, and self-contained injected CSS
   - **Settings toggleable**: Appears in Settings → Plugins as a community plugin that can be enabled or disabled independently
+  - **Copy block reference**: Right-click any bullet (•) to copy `((block-id))` to the clipboard — a toast notification confirms the copy
+  - **Keyboard shortcut for copying block reference**: `Ctrl+Shift+C` (or `Cmd+Shift+C`) when focused inside a node editor copies `((block-id))`
 
 ## [0.2.5] - 2026-04-30
 
@@ -292,8 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...HEAD
-[0.3.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...v0.3.1
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.3...v0.2.4

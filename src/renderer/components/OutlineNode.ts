@@ -42,8 +42,8 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
     (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      void navigator.clipboard.writeText(node.id).then(() => {
-        showCopyToast(`Copied block ID: ${node.id}`);
+      void navigator.clipboard.writeText(`((${node.id}))`).then(() => {
+        showCopyToast(`Copied block reference`);
       });
     },
     [node.id]
@@ -84,8 +84,8 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
           class="bullet ${hasChildren ? "has-children" : ""}"
           onClick=${handleBulletClick}
           onContextMenu=${handleBulletContextMenu}
-          aria-label="Focus on this node. Right-click to copy block ID."
-          title="Focus on this node. Right-click to copy block ID."
+          aria-label="Focus on this node. Right-click to copy block reference."
+          title="Focus on this node. Right-click to copy block reference."
         >
           •
         </button>

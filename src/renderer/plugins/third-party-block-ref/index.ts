@@ -309,16 +309,16 @@ const plugin: RendererPlugin = {
         const nodeId = target.dataset.nodeId;
         if (!nodeId) return;
         e.preventDefault();
-        void navigator.clipboard.writeText(nodeId).then(() => {
-          showCopyToast(`Copied block ID: ${nodeId}`);
+        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
+          showCopyToast(`Copied block reference`);
         });
       }
     };
     document.addEventListener("keydown", keydownHandler);
 
     ctx.registerCommand({
-      id: "copy-block-id",
-      name: "Copy Block ID",
+      id: "copy-block-ref",
+      name: "Copy Block Reference",
       shortcut: "Ctrl+Shift+C",
       category: "Navigation",
       keywords: ["block", "reference", "copy", "id", "ref"],
@@ -327,8 +327,8 @@ const plugin: RendererPlugin = {
         if (!target?.classList.contains("node-editor")) return;
         const nodeId = target.dataset.nodeId;
         if (!nodeId) return;
-        void navigator.clipboard.writeText(nodeId).then(() => {
-          showCopyToast(`Copied block ID: ${nodeId}`);
+        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
+          showCopyToast(`Copied block reference`);
         });
       },
     });
