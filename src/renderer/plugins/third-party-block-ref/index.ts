@@ -1,10 +1,14 @@
 import type { RendererPlugin } from "../../../shared/plugin-types";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
+import type { OutlineNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
 
 const BLOCK_REF_REGEX = /\(\(([^\s)]+)\)\)/g;
+const REF_DISPLAY_KEY = "mindscape_block_ref_display";
+
+let refDisplayMode: "uuid" | "content" = "uuid";
 
 function showCopyToast(message: string): void {
   const el = document.createElement("div");
@@ -16,6 +20,24 @@ function showCopyToast(message: string): void {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 300);
   }, 2000);
+}
+
+function loadRefDisplayMode(): void {
+  try {
+    const saved = localStorage.getItem(REF_DISPLAY_KEY);
+    if (saved === "content") refDisplayMode = "content";
+    else refDisplayMode = "uuid";
+  } catch {
+    refDisplayMode = "uuid";
+  }
+}
+
+function saveRefDisplayMode(): void {
+  try {
+    localStorage.setItem(REF_DISPLAY_KEY, refDisplayMode);
+  } catch {
+    /* ignore */
+  }
 }
 
 const REF_CSS = `
@@ -34,11 +56,34 @@ const REF_CSS = `
   background: rgba(79, 195, 247, 0.25);
   text-decoration: underline;
 }
+.block-ref-wrapper.content-mode {
+  color: inherit;
+  background: rgba(79, 195, 247, 0.06);
+  border-bottom: 1px dashed rgba(79, 195, 247, 0.4);
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+.block-ref-wrapper.content-mode:hover {
+  background: rgba(79, 195, 247, 0.12);
+  text-decoration: none;
+  border-bottom-color: var(--accent, #4fc3f7);
+}
+.block-ref-wrapper.content-mode::after {
+  content: "↩";
+  opacity: 0.5;
+  font-size: 0.8em;
+  margin-left: 3px;
+  vertical-align: super;
+}
 .block-ref-wrapper::before {
   content: "↪";
   opacity: 0.7;
   font-size: 0.85em;
   margin-right: 2px;
+}
+.block-ref-wrapper.content-mode::before {
+  content: none;
 }
 .block-ref-preview {
   position: fixed;
@@ -131,6 +176,18 @@ const REF_CSS = `
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.backlink-breadcrumb {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.backlink-crumb-sep {
+  opacity: 0.4;
 }
 .backlink-badge {
   display: inline-flex;
@@ -297,6 +354,14 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
+function buildBreadcrumbHTML(ancestors: OutlineNode[]): string {
+  if (ancestors.length === 0) return "";
+  const crumbs = ancestors
+    .map((a) => escapeHtml(a.content || "(empty)"))
+    .join(" <span class=\"backlink-crumb-sep\">\u203a</span> ");
+  return `<span class="backlink-breadcrumb">${crumbs}</span>`;
+}
+
 async function updateBacklinksPanel(zoomedNodeId: string | null): Promise<void> {
   if (!backlinksPanel) return;
 
@@ -316,6 +381,61 @@ async function updateBacklinksPanel(zoomedNodeId: string | null): Promise<void> 
   const nodes = res.data;
   const count = nodes.length;
 
+  // Fetch ancestors for all backlinks in parallel
+  const ancestorsMap = new Map<string, OutlineNode[]>();
+  await Promise.all(
+    nodes.map(async (node) => {
+      try {
+        const ancRes = await api.getAncestors(node.id);
+        if (ancRes.success && ancRes.data) {
+          ancestorsMap.set(node.id, ancRes.data);
+        }
+      } catch {
+        /* ignore */
+      }
+    })
+  );
+
+  // Resolve block-refs in backlink content using existing cache
+  const refRegex = BLOCK_REF_REGEX;
+  const resolvedContentMap = new Map<string, string>();
+
+  for (const node of nodes) {
+    let resolved = node.content || "";
+    const refIds = new Set<string>();
+    let m: RegExpExecArray | null;
+    refRegex.lastIndex = 0;
+    while ((m = refRegex.exec(resolved)) !== null) {
+      refIds.add(m[1]);
+    }
+    refRegex.lastIndex = 0;
+
+    if (refIds.size > 0) {
+      // Fetch any uncached refs
+      await Promise.all(
+        [...refIds].map(async (refId) => {
+          if (contentCache.has(refId)) return;
+          try {
+            const refRes = await api.resolveBlockRef(refId);
+            if (refRes.success && refRes.data) {
+              contentCache.set(refId, (refRes.data as any).content || "(empty)");
+            }
+          } catch {
+            contentCache.set(refId, "(error)");
+          }
+        })
+      );
+
+      // Replace all refs with cached content
+      for (const refId of refIds) {
+        const cached = contentCache.get(refId) || "...";
+        resolved = resolved.split(`((${refId}))`).join(cached);
+      }
+    }
+
+    resolvedContentMap.set(node.id, resolved);
+  }
+
   backlinksPanel.style.display = "block";
   backlinksPanel.innerHTML = `
     <div class="backlinks-header">
@@ -328,7 +448,8 @@ async function updateBacklinksPanel(zoomedNodeId: string | null): Promise<void> 
         .map(
           (node) => `
         <div class="backlink-item" data-node-id="${node.id}">
-          <span class="backlink-content">${escapeHtml(node.content) || "(empty)"}</span>
+          <span class="backlink-content">${escapeHtml(resolvedContentMap.get(node.id) || node.content) || "(empty)"}</span>
+          ${buildBreadcrumbHTML(ancestorsMap.get(node.id) || [])}
         </div>
       `
         )
@@ -460,10 +581,19 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
 
     wrapTextNode(textNode, (id) => {
       const span = document.createElement("span");
-      span.className = "block-ref-wrapper";
       span.dataset.refId = id;
-      span.textContent = `(( ${id} ))`;
       span.contentEditable = "false";
+
+      const isContentMode = refDisplayMode === "content";
+      const content = contentCache.get(id) || "(loading)";
+
+      if (isContentMode) {
+        span.className = "block-ref-wrapper content-mode";
+        span.textContent = content;
+      } else {
+        span.className = "block-ref-wrapper";
+        span.textContent = `(( ${id} ))`;
+      }
 
       span.addEventListener("mousedown", (e) => {
         e.preventDefault();
@@ -472,7 +602,11 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
       });
 
       span.addEventListener("mouseenter", () => {
-        showTooltip(span, contentCache.get(id) || "...");
+        if (isContentMode) {
+          showTooltip(span, `(( ${id} ))`);
+        } else {
+          showTooltip(span, contentCache.get(id) || "...");
+        }
       });
 
       span.addEventListener("mouseleave", () => {
@@ -513,6 +647,7 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
+    loadRefDisplayMode();
     injectCSS();
 
     // Transform any editors already in the DOM
@@ -562,6 +697,20 @@ const plugin: RendererPlugin = {
         void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
           showCopyToast(`Copied block reference`);
         });
+      },
+    });
+
+    ctx.registerCommand({
+      id: "toggle-block-ref-display",
+      name: "Toggle Block Ref Display",
+      category: "Navigation",
+      keywords: ["block", "reference", "display", "content", "uuid", "toggle"],
+      execute: () => {
+        refDisplayMode = refDisplayMode === "content" ? "uuid" : "content";
+        saveRefDisplayMode();
+        scanAndTransform();
+        const label = refDisplayMode === "content" ? "Show referenced content" : "Show block ID";
+        showCopyToast(`${label}`);
       },
     });
 
