@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-02
+
+### Added
+
+- **Page Mode plugin** (`third-party-page-mode`, community, disabled by default): Turn any block into a page with `[[wikilink]]` syntax — inspired by Logseq/Roam page structure
+  - **Toggle Page Mode** command: Marks the focused node as a page; children are hidden from the main tree and the node displays as `[[content]]` with accent-colored dashed underline
+  - **Click to enter page**: Clicking a `[[wikilink]]` zooms into that node, showing all descendants normally — the page title is editable from within the page view
+  - **Persistent page state**: Page IDs stored in `localStorage` (`mindscape_page_ids`); survives reloads
+  - **Play-nice with block-ref**: Uses `::before`/`::after` pseudo-elements for bracket rendering, preserving inner DOM so `((block-ref))` pills inside page content render correctly
+
 ## [0.3.2] - 2026-05-02
 
 ### Added
@@ -313,7 +323,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.5...v0.3.0
