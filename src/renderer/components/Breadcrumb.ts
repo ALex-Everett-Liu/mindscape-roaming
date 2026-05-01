@@ -27,12 +27,13 @@ export function Breadcrumb({ ancestors, onHome, onNavigateToAncestor }: Props) {
           <span class="breadcrumb-separator" aria-hidden="true">></span>
           ${isCurrent
             ? html`
-                <span class="breadcrumb-item breadcrumb-active" aria-current="page">${label}</span>
+                <span class="breadcrumb-item breadcrumb-active" aria-current="page" data-node-id=${node.id}>${label}</span>
               `
             : html`
                 <button
                   type="button"
                   class="breadcrumb-item"
+                  data-node-id=${node.id}
                   title=${`Focus on: ${label}`}
                   onClick=${() => onNavigateToAncestor(node.id)}
                 >

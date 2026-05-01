@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Click to enter page**: Clicking a `[[wikilink]]` zooms into that node, showing all descendants normally — the page title is editable from within the page view
   - **Persistent page state**: Page IDs stored in `localStorage` (`mindscape_page_ids`); survives reloads
   - **Play-nice with block-ref**: Uses `::before`/`::after` pseudo-elements for bracket rendering, preserving inner DOM so `((block-ref))` pills inside page content render correctly
+  - **Breadcrumb truncation**: "Toggle Breadcrumb Truncation" command scopes the breadcrumb trail to the nearest page ancestor, hiding ascendants outside the current page. The page boundary is marked with an accent-colored left border. Preference persisted in `localStorage` (`mindscape_page_breadcrumb_truncate`)
 
 ## [0.3.2] - 2026-05-02
 

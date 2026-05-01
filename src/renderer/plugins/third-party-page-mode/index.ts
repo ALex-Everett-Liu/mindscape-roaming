@@ -1,9 +1,11 @@
 import type { RendererPlugin } from "../../../shared/plugin-types";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
+import type { OutlineNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
 
 const PAGE_IDS_KEY = "mindscape_page_ids";
+const BREADCRUMB_TRUNCATE_KEY = "mindscape_page_breadcrumb_truncate";
 
 const PAGE_CSS = `
 .outline-node[data-is-page]:not(.in-page) > .outline-tree {
@@ -28,6 +30,14 @@ const PAGE_CSS = `
   content: "]]";
   opacity: 0.7;
   font-weight: 600;
+}
+.breadcrumb-item.page-scope-boundary {
+  border-left: 2px solid var(--accent, #4fc3f7);
+  padding-left: 8px;
+  border-radius: 0;
+}
+.breadcrumb-scope-hidden {
+  display: none !important;
 }
 `;
 
@@ -83,6 +93,80 @@ function togglePage(id: string): boolean {
     pageIds.add(id);
     savePageIds();
     return true;
+  }
+}
+
+/* ─── Breadcrumb truncation ─── */
+
+let breadcrumbTruncate = false;
+
+function loadBreadcrumbPref(): void {
+  try {
+    breadcrumbTruncate = localStorage.getItem(BREADCRUMB_TRUNCATE_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveBreadcrumbPref(): void {
+  try {
+    localStorage.setItem(BREADCRUMB_TRUNCATE_KEY, breadcrumbTruncate ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+function findPageAncestorInBreadcrumbs(): OutlineNode | null {
+  const breadcrumbs = store.getState().breadcrumbs;
+  if (breadcrumbs.length === 0) return null;
+
+  // Find the last (deepest) page node in the breadcrumbs
+  for (let i = breadcrumbs.length - 1; i >= 0; i--) {
+    if (pageIds.has(breadcrumbs[i].id)) {
+      return breadcrumbs[i];
+    }
+  }
+  return null;
+}
+
+function applyBreadcrumbTruncation(): void {
+  const container = document.querySelector<HTMLElement>(".breadcrumb-container");
+  if (!container) return;
+
+  // Remove existing scope classes
+  container.querySelectorAll(".breadcrumb-scope-hidden").forEach((el) => {
+    el.classList.remove("breadcrumb-scope-hidden");
+  });
+  const existingBoundary = container.querySelector(".page-scope-boundary");
+  if (existingBoundary) {
+    existingBoundary.classList.remove("page-scope-boundary");
+  }
+
+  if (!breadcrumbTruncate) return;
+
+  const pageAncestor = findPageAncestorInBreadcrumbs();
+  if (!pageAncestor) return;
+
+  // Find the boundary item in the DOM
+  const boundaryEl = container.querySelector<HTMLElement>(
+    `.breadcrumb-item[data-node-id="${pageAncestor.id}"]`
+  );
+  if (!boundaryEl) return;
+
+  boundaryEl.classList.add("page-scope-boundary");
+
+  // Hide all preceding elements (Home, separators, and ancestor breadcrumbs)
+  let current: Element | null = container.firstElementChild;
+  let boundaryReached = false;
+
+  while (current) {
+    if (current === boundaryEl) {
+      boundaryReached = true;
+    }
+    if (!boundaryReached) {
+      current.classList.add("breadcrumb-scope-hidden");
+    }
+    current = current.nextElementSibling;
   }
 }
 
@@ -203,10 +287,11 @@ const plugin: RendererPlugin = {
 
   async onLoad(ctx: RendererPluginContext) {
     loadPageIds();
+    loadBreadcrumbPref();
     injectCSS();
 
     // Initial scan
-    requestAnimationFrame(() => scanAndTransform());
+    requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
 
     // Watch for DOM changes
     observer = new MutationObserver((mutations) => {
@@ -214,7 +299,7 @@ const plugin: RendererPlugin = {
         (m) => m.type === "childList" && m.addedNodes.length > 0
       );
       if (hasNewNodes) {
-        requestAnimationFrame(() => scanAndTransform());
+        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -227,7 +312,7 @@ const plugin: RendererPlugin = {
     unsubStore = store.subscribe((state) => {
       if (state.zoomedNodeId !== lastZoomedId) {
         lastZoomedId = state.zoomedNodeId;
-        requestAnimationFrame(() => scanAndTransform());
+        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
       }
     });
 
@@ -253,6 +338,26 @@ const plugin: RendererPlugin = {
       },
     });
 
+    ctx.registerCommand({
+      id: "breadcrumb-truncate-toggle",
+      name: "Toggle Breadcrumb Truncation",
+      category: "Page",
+      keywords: ["page", "breadcrumb", "truncate", "scope"],
+      execute: () => {
+        breadcrumbTruncate = !breadcrumbTruncate;
+        saveBreadcrumbPref();
+        requestAnimationFrame(() => applyBreadcrumbTruncation());
+
+        if (breadcrumbTruncate) {
+          const pageNode = findPageAncestorInBreadcrumbs();
+          const label = pageNode?.content || "page";
+          showCopyToast(`Breadcrumb scoped to: ${label}`);
+        } else {
+          showCopyToast("Full breadcrumb hierarchy restored");
+        }
+      },
+    });
+
     console.log("[third-party-page-mode] renderer ready");
   },
 
@@ -271,6 +376,16 @@ const plugin: RendererPlugin = {
 
     document.removeEventListener("focusin", handleFocusIn);
     document.removeEventListener("focusout", handleFocusOut);
+
+    // Remove breadcrumb truncation markers
+    const container = document.querySelector<HTMLElement>(".breadcrumb-container");
+    if (container) {
+      container.querySelectorAll(".breadcrumb-scope-hidden").forEach((el) => {
+        el.classList.remove("breadcrumb-scope-hidden");
+      });
+      const boundary = container.querySelector(".page-scope-boundary");
+      if (boundary) boundary.classList.remove("page-scope-boundary");
+    }
 
     // Unwrap all page content
     const editors = document.querySelectorAll<HTMLElement>(".node-editor");
