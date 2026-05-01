@@ -39,6 +39,68 @@ const PAGE_CSS = `
 .breadcrumb-scope-hidden {
   display: none !important;
 }
+.page-ancestors-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg, #1a1a2e);
+  border-top: 1px solid var(--border, #333);
+  z-index: 51;
+  font-size: 13px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.page-ancestors-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--bg, #1a1a2e);
+  border-bottom: 1px solid var(--border, #333);
+  position: sticky;
+  top: 0;
+}
+.page-ancestors-count {
+  background: rgba(79, 195, 247, 0.2);
+  color: var(--accent, #4fc3f7);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+.page-ancestors-label {
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+.page-ancestors-list {
+  padding: 4px 0;
+}
+.page-ancestor-item {
+  padding: 6px 16px 6px 24px;
+  color: var(--text, #e0e0e0);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.1s;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.page-ancestor-item:hover {
+  background: var(--focus-bg, rgba(255,255,255,0.05));
+  border-left-color: var(--accent, #4fc3f7);
+}
+.page-ancestor-content {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 `;
 
 let styleEl: HTMLStyleElement | null = null;
@@ -46,6 +108,7 @@ let observer: MutationObserver | null = null;
 let unsubStore: (() => void) | null = null;
 let lastZoomedId: string | null | undefined = undefined;
 let pageIds: Set<string> = new Set();
+let ancestorsPanel: HTMLDivElement | null = null;
 
 function showCopyToast(message: string): void {
   const el = document.createElement("div");
@@ -170,6 +233,95 @@ function applyBreadcrumbTruncation(): void {
   }
 }
 
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function createAncestorsPanel(): HTMLDivElement {
+  const panel = document.createElement("div");
+  panel.className = "page-ancestors-panel";
+  panel.style.display = "none";
+  return panel;
+}
+
+function updateAncestorPanel(): void {
+  if (!ancestorsPanel) return;
+
+  if (!breadcrumbTruncate) {
+    ancestorsPanel.style.display = "none";
+    return;
+  }
+
+  const breadcrumbs = store.getState().breadcrumbs;
+  if (breadcrumbs.length === 0) {
+    ancestorsPanel.style.display = "none";
+    return;
+  }
+
+  // Find the page ancestor in breadcrumbs
+  let pageIndex = -1;
+  for (let i = breadcrumbs.length - 1; i >= 0; i--) {
+    if (pageIds.has(breadcrumbs[i].id)) {
+      pageIndex = i;
+      break;
+    }
+  }
+
+  // No page ancestor, or page is at root level — nothing hidden
+  if (pageIndex <= 0) {
+    ancestorsPanel.style.display = "none";
+    return;
+  }
+
+  // Ancestors above the page boundary (index 0 to pageIndex - 1)
+  const hiddenAncestors = breadcrumbs.slice(0, pageIndex);
+  if (hiddenAncestors.length === 0) {
+    ancestorsPanel.style.display = "none";
+    return;
+  }
+
+  const count = hiddenAncestors.length;
+
+  // Offset bottom when backlinks panel is also visible
+  const backlinksPanel = document.querySelector<HTMLElement>(".backlinks-panel");
+  if (backlinksPanel && backlinksPanel.style.display !== "none") {
+    ancestorsPanel.style.bottom = `${backlinksPanel.offsetHeight}px`;
+  } else {
+    ancestorsPanel.style.bottom = "0";
+  }
+
+  ancestorsPanel.style.display = "block";
+  ancestorsPanel.innerHTML = `
+    <div class="page-ancestors-header">
+      <span class="page-ancestors-count">${count}</span>
+      <span class="page-ancestors-label">Ancestor${count > 1 ? "s" : ""} above this page</span>
+    </div>
+    <div class="page-ancestors-list">
+      ${hiddenAncestors
+        .map(
+          (node) => `
+        <div class="page-ancestor-item" data-node-id="${node.id}">
+          <span class="page-ancestor-content">${escapeHtml(node.content) || "(empty)"}</span>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
+
+  // Click to navigate to ancestor
+  ancestorsPanel.querySelectorAll(".page-ancestor-item").forEach((item) => {
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const nodeId = (item as HTMLElement).dataset.nodeId;
+      if (nodeId) void store.zoomIn(nodeId);
+    });
+  });
+}
+
 /* ─── CSS injection ─── */
 
 function injectCSS(): void {
@@ -291,7 +443,7 @@ const plugin: RendererPlugin = {
     injectCSS();
 
     // Initial scan
-    requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
+    requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
 
     // Watch for DOM changes
     observer = new MutationObserver((mutations) => {
@@ -299,7 +451,7 @@ const plugin: RendererPlugin = {
         (m) => m.type === "childList" && m.addedNodes.length > 0
       );
       if (hasNewNodes) {
-        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
+        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -312,9 +464,13 @@ const plugin: RendererPlugin = {
     unsubStore = store.subscribe((state) => {
       if (state.zoomedNodeId !== lastZoomedId) {
         lastZoomedId = state.zoomedNodeId;
-        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); });
+        requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
       }
     });
+
+    ancestorsPanel = createAncestorsPanel();
+    document.body.appendChild(ancestorsPanel);
+    updateAncestorPanel();
 
     // Register commands
     ctx.registerCommand({
@@ -346,7 +502,7 @@ const plugin: RendererPlugin = {
       execute: () => {
         breadcrumbTruncate = !breadcrumbTruncate;
         saveBreadcrumbPref();
-        requestAnimationFrame(() => applyBreadcrumbTruncation());
+        requestAnimationFrame(() => { applyBreadcrumbTruncation(); updateAncestorPanel(); });
 
         if (breadcrumbTruncate) {
           const pageNode = findPageAncestorInBreadcrumbs();
@@ -385,6 +541,11 @@ const plugin: RendererPlugin = {
       });
       const boundary = container.querySelector(".page-scope-boundary");
       if (boundary) boundary.classList.remove("page-scope-boundary");
+    }
+
+    if (ancestorsPanel) {
+      ancestorsPanel.remove();
+      ancestorsPanel = null;
     }
 
     // Unwrap all page content

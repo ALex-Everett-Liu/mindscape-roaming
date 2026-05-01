@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Block-ref display mode toggle**: "Toggle Block Ref Display" command switches between showing `↪ ((uuid))` (UUID mode, default) and showing the actual referenced content with a dashed underline (Content mode). In content mode, the UUID is shown on hover. Preference persisted in `localStorage` (`mindscape_block_ref_display`)
 - **Backlinks panel breadcrumb trails**: Each backlink item now shows the full ancestor path (e.g. `Root › Section › Subsection`) in muted text, so you can see where each referencing node lives in the outline
 - **Backlinks panel ref resolution**: Backlink items now resolve `((uuid))` references in their content to show actual text instead of raw UUID strings, making the context of each backlink immediately readable
+- **Page Ancestors panel**: When breadcrumb truncation is enabled inside a page, a bottom panel shows clickable ancestor nodes above the page boundary (e.g. `2 Ancestors above this page`), providing a way to navigate back out of the page scope
 
 ## [0.3.3] - 2026-05-02
 
