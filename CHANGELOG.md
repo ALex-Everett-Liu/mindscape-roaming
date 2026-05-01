@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-02
+
+### Added
+
+- **Subtree export commands**: Five new Command Palette commands — "Export focused node as JSON/Markdown/OPML/Plain text/HTML" — export only the currently focused node and all its descendants (including itself), narrowing the export scope to avoid oversized export files from large outlines
+
 ## [0.3.1] - 2026-04-30
 
 ### Added
@@ -307,7 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.2.4...v0.2.5

@@ -193,6 +193,26 @@ export function exportToHtml(tree: OutlineTreeNode[]): { content: string; filena
   };
 }
 
+export function exportSubtreeToJson(node: OutlineTreeNode): { content: string; filename: string; mimeType: string } {
+  return exportToJson([node]);
+}
+
+export function exportSubtreeToMarkdown(node: OutlineTreeNode): { content: string; filename: string; mimeType: string } {
+  return exportToMarkdown([node]);
+}
+
+export function exportSubtreeToPlainText(node: OutlineTreeNode): { content: string; filename: string; mimeType: string } {
+  return exportToPlainText([node]);
+}
+
+export function exportSubtreeToOpml(node: OutlineTreeNode): { content: string; filename: string; mimeType: string } {
+  return exportToOpml([node]);
+}
+
+export function exportSubtreeToHtml(node: OutlineTreeNode): { content: string; filename: string; mimeType: string } {
+  return exportToHtml([node]);
+}
+
 export function triggerDownload(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
