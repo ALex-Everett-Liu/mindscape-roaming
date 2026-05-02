@@ -25,11 +25,14 @@ const plugin: MainPlugin = {
       CREATE INDEX IF NOT EXISTS idx_nodes_deleted ON outline_nodes(is_deleted)
     `);
 
-    ctx.runMigration(2, "add_is_page_column", `
-      ALTER TABLE outline_nodes ADD COLUMN is_page INTEGER NOT NULL DEFAULT 0;
-    `);
-
     const db = ctx.getDatabase();
+
+    // Ensure is_page column exists (may already be present in fresh DBs)
+    try {
+      db.run("ALTER TABLE outline_nodes ADD COLUMN is_page INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* column already exists */
+    }
 
     // Migrate from outliner_nodes if it exists (legacy/typo table name)
     try {

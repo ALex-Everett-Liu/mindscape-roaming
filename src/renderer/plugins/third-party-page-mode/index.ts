@@ -109,6 +109,7 @@ let unsubStore: (() => void) | null = null;
 let lastZoomedId: string | null | undefined = undefined;
 let pageIds: Set<string> = new Set();
 let ancestorsPanel: HTMLDivElement | null = null;
+let lastAncestorHTML = "";
 
 function showCopyToast(message: string): void {
   const el = document.createElement("div");
@@ -120,6 +121,16 @@ function showCopyToast(message: string): void {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 300);
   }, 2000);
+}
+
+/* ─── Debug log buffer ─── */
+
+const debugLogs: string[] = [];
+function logDebug(msg: string): void {
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = `[${ts}] ${msg}`;
+  console.log(line);
+  debugLogs.push(line);
 }
 
 /* ─── Page ID cache (synced from tree data) ─── */
@@ -136,7 +147,7 @@ function syncPageCacheFromStore(): void {
   for (const crumb of store.getState().breadcrumbs) {
     if (crumb.is_page) next.add(crumb.id);
   }
-  console.log(`[page-mode] syncPageCache: ${pageIds.size} → ${next.size} pages (tree nodes: ${store.getState().tree.length}, crumbs: ${store.getState().breadcrumbs.length})`);
+  logDebug(`syncPageCache: ${pageIds.size} -> ${next.size} pages (tree:${store.getState().tree.length} crumbs:${store.getState().breadcrumbs.length})`);
   pageIds = next;
 }
 
@@ -146,7 +157,7 @@ function isPage(id: string): boolean {
 
 async function togglePageAsync(id: string): Promise<boolean> {
   const became = !pageIds.has(id);
-  console.log(`[page-mode] togglePageAsync: id=${id}, became=${became}`);
+  logDebug(`togglePageAsync: id=${id}, became=${became}`);
   try {
     store.markModified(id);
     await api.updateNode({ id, is_page: became });
@@ -251,12 +262,14 @@ function updateAncestorPanel(): void {
 
   if (!breadcrumbTruncate) {
     ancestorsPanel.style.display = "none";
+    lastAncestorHTML = "";
     return;
   }
 
   const breadcrumbs = store.getState().breadcrumbs;
   if (breadcrumbs.length === 0) {
     ancestorsPanel.style.display = "none";
+    lastAncestorHTML = "";
     return;
   }
 
@@ -272,6 +285,7 @@ function updateAncestorPanel(): void {
   // No page ancestor, or page is at root level — nothing hidden
   if (pageIndex <= 0) {
     ancestorsPanel.style.display = "none";
+    lastAncestorHTML = "";
     return;
   }
 
@@ -279,6 +293,7 @@ function updateAncestorPanel(): void {
   const hiddenAncestors = breadcrumbs.slice(0, pageIndex);
   if (hiddenAncestors.length === 0) {
     ancestorsPanel.style.display = "none";
+    lastAncestorHTML = "";
     return;
   }
 
@@ -293,7 +308,7 @@ function updateAncestorPanel(): void {
   }
 
   ancestorsPanel.style.display = "block";
-  ancestorsPanel.innerHTML = `
+  const html = `
     <div class="page-ancestors-header">
       <span class="page-ancestors-count">${count}</span>
       <span class="page-ancestors-label">Ancestor${count > 1 ? "s" : ""} above this page</span>
@@ -310,6 +325,11 @@ function updateAncestorPanel(): void {
         .join("")}
     </div>
   `;
+
+  // Skip re-render if content unchanged (prevents MutationObserver loop)
+  if (html === lastAncestorHTML) return;
+  lastAncestorHTML = html;
+  ancestorsPanel.innerHTML = html;
 
   // Click to navigate to ancestor
   ancestorsPanel.querySelectorAll(".page-ancestor-item").forEach((item) => {
@@ -355,7 +375,7 @@ function wrapPageContent(editor: HTMLElement, nodeId: string): void {
   if (editor.querySelector(".page-wikilink-wrapper")) return;
   if (editor.contains(document.activeElement)) return;
 
-  console.log(`[page-mode] wrapPageContent: wrapping editor for page node "${nodeId}"`);
+  logDebug(`wrapPageContent: wrapping editor for page node "${nodeId}"`);
 
   const wrapper = document.createElement("span");
   wrapper.className = "page-wikilink-wrapper";
@@ -393,13 +413,13 @@ function handleFocusIn(e: FocusEvent): void {
   if (!target?.classList.contains("node-editor")) return;
 
   const nodeId = target.dataset.nodeId;
-  console.log(`[page-mode] focusin: editor nodeId=${nodeId}, isPage=${isPage(nodeId ?? '')}, zoomedId=${store.getState().zoomedNodeId}`);
+  logDebug(`focusin: editor nodeId=${nodeId}, isPage=${isPage(nodeId ?? '')}, zoomedId=${store.getState().zoomedNodeId}`);
   if (!nodeId || !isPage(nodeId)) return;
 
   const zoomedId = store.getState().zoomedNodeId;
   if (zoomedId !== nodeId) {
     // Not in page — blur and zoom in instead of editing
-    console.log(`[page-mode] focusin: NOT in page, zooming in to page node "${nodeId}"`);
+    logDebug(`focusin: NOT in page, zooming in to page node "${nodeId}"`);
     focusForcingZoom = true;
     target.blur();
     focusForcingZoom = false;
@@ -425,13 +445,13 @@ let scanning = false;
 
 function scanAndTransform(): void {
   if (scanning) {
-    console.log("[page-mode] scanAndTransform: RE-ENTRY GUARD, skipping");
+    logDebug("scanAndTransform: RE-ENTRY GUARD, skipping");
     return;
   }
   scanning = true;
   try {
   const zoomedId = store.getState().zoomedNodeId;
-  console.log(`[page-mode] scanAndTransform: zoomedId=${zoomedId}, pageIds.size=${pageIds.size}`);
+  logDebug(`scanAndTransform: zoomedId=${zoomedId}, pageIds.size=${pageIds.size}`);
 
   const nodes = document.querySelectorAll<HTMLElement>(
     ".outline-node[data-node-id]"
@@ -444,8 +464,6 @@ function scanAndTransform(): void {
     if (!editor) continue;
 
     if (isPage(nodeId)) {
-      nodeEl.setAttribute("data-is-page", "");
-
       if (zoomedId === nodeId) {
         nodeEl.classList.add("in-page");
         unwrapPageContent(editor);
@@ -454,7 +472,6 @@ function scanAndTransform(): void {
         wrapPageContent(editor, nodeId);
       }
     } else {
-      nodeEl.removeAttribute("data-is-page");
       nodeEl.classList.remove("in-page");
       unwrapPageContent(editor);
     }
@@ -544,6 +561,24 @@ const plugin: RendererPlugin = {
         } else {
           showCopyToast("Full breadcrumb hierarchy restored");
         }
+      },
+    });
+
+    ctx.registerCommand({
+      id: "page-mode-dump-logs",
+      name: "Dump Page Debug Logs",
+      category: "Page",
+      keywords: ["page", "debug", "log", "dump", "txt"],
+      execute: () => {
+        const text = debugLogs.join("\n");
+        const blob = new Blob([text], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `page-mode-debug-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showCopyToast(`Dumped ${debugLogs.length} log lines`);
       },
     });
 

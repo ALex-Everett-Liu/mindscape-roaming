@@ -63,6 +63,7 @@ export function OutlineNode({ node, focusedNodeId }: Props) {
     <li
       class="outline-node ${isFocused ? "focused" : ""} ${isUnsaved ? "unsaved" : ""} ${dragDropEnabled ? "draggable-node" : ""}"
       data-node-id=${node.id}
+      data-is-page=${node.is_page ? "" : undefined}
       role="treeitem"
       aria-expanded=${hasChildren ? node.is_expanded : undefined}
       draggable=${dragDropEnabled}
