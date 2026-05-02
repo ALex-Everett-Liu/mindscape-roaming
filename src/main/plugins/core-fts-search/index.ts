@@ -44,9 +44,22 @@ const plugin: MainPlugin = {
     ctx.registerRpcHandler("search", (params: SearchParams) => {
       ctx.log("search called, query:", params.query, "limit:", params.limit ?? 50);
       try {
-        // FTS5 prefix: bareword "term*" per sqlite.org/fts5.html
+        // Build FTS5-safe query. The unicode61 tokenizer splits on non-alphanumeric
+        // chars (hyphens, dots, etc.), but the MATCH parser treats those as operators.
+        // Wrap tokens with special chars in double quotes and skip prefix * for them.
+        function fts5Token(t: string): string {
+          const hasSpecial = /[^a-zA-Z0-9\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/.test(t);
+          if (!hasSpecial) return `${t}*`;
+          const cleaned = t.replace(/[^a-zA-Z0-9\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]+/g, " ").trim();
+          return cleaned ? `"${cleaned}"` : `"${t}"`;
+        }
+        function fts5Exact(s: string): string {
+          const cleaned = s.replace(/[^a-zA-Z0-9\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]+/g, " ").trim();
+          return cleaned ? `"${cleaned}"` : s;
+        }
+
         const tokens = params.query.split(/\s+/).filter((t) => t.length > 0);
-        const ftsQuery = tokens.map((t) => `${t}*`).join(" AND ");
+        const ftsQuery = tokens.map(fts5Token).join(" AND ");
         ctx.log("FTS query:", ftsQuery);
 
         let rows = db
@@ -67,7 +80,7 @@ const plugin: MainPlugin = {
                WHERE outline_nodes_fts MATCH ? AND n.is_deleted = 0
                ORDER BY rank LIMIT ?`
             )
-            .all(params.query, params.limit ?? 50) as Record<string, unknown>[];
+            .all(fts5Exact(params.query), params.limit ?? 50) as Record<string, unknown>[];
           ctx.log("exact match returned", rows.length, "rows");
         }
 
