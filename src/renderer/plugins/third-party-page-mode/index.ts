@@ -3,8 +3,8 @@ import type { RendererPluginContext } from "../../plugin-system/RendererPluginCo
 import type { OutlineNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
+import { api } from "../../rpc/api";
 
-const PAGE_IDS_KEY = "mindscape_page_ids";
 const BREADCRUMB_TRUNCATE_KEY = "mindscape_page_breadcrumb_truncate";
 
 const PAGE_CSS = `
@@ -122,40 +122,75 @@ function showCopyToast(message: string): void {
   }, 2000);
 }
 
-/* ─── Page ID persistence ─── */
+/* ─── Page ID cache (synced from tree data) ─── */
 
-function loadPageIds(): void {
+const LEGACY_PAGE_IDS_KEY = "mindscape_page_ids";
+const MIGRATED_FLAG = "mindscape_page_db_migrated";
+
+async function migrateLegacyPageIds(): Promise<void> {
   try {
-    const raw = localStorage.getItem(PAGE_IDS_KEY);
-    if (raw) {
-      pageIds = new Set(JSON.parse(raw));
+    if (localStorage.getItem(MIGRATED_FLAG) === "1") return;
+    const raw = localStorage.getItem(LEGACY_PAGE_IDS_KEY);
+    if (!raw) {
+      localStorage.setItem(MIGRATED_FLAG, "1");
+      return;
+    }
+    const ids: string[] = JSON.parse(raw);
+    if (ids.length === 0) {
+      localStorage.removeItem(LEGACY_PAGE_IDS_KEY);
+      localStorage.setItem(MIGRATED_FLAG, "1");
+      return;
+    }
+    console.log(`[page-mode] Migrating ${ids.length} legacy page IDs to DB...`);
+    let count = 0;
+    for (const id of ids) {
+      try {
+        await api.updateNode({ id, is_page: true });
+        count++;
+      } catch {
+        /* node may no longer exist */
+      }
+    }
+    localStorage.removeItem(LEGACY_PAGE_IDS_KEY);
+    localStorage.setItem(MIGRATED_FLAG, "1");
+    console.log(`[page-mode] Migrated ${count}/${ids.length} page IDs to DB`);
+    // Reload the tree so is_page values are picked up from DB
+    const zoomed = store.getState().zoomedNodeId;
+    if (zoomed) {
+      await store.zoomIn(zoomed);
+    } else {
+      await store.initialLoad();
     }
   } catch {
     /* ignore */
   }
 }
 
-function savePageIds(): void {
-  try {
-    localStorage.setItem(PAGE_IDS_KEY, JSON.stringify([...pageIds]));
-  } catch {
-    /* ignore */
+function syncPageCacheFromStore(): void {
+  const next = new Set<string>();
+  const stack = [...store.getState().tree];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.is_page) next.add(node.id);
+    stack.push(...node.children);
   }
+  pageIds = next;
 }
 
 function isPage(id: string): boolean {
   return pageIds.has(id);
 }
 
-function togglePage(id: string): boolean {
-  if (pageIds.has(id)) {
-    pageIds.delete(id);
-    savePageIds();
-    return false;
-  } else {
-    pageIds.add(id);
-    savePageIds();
-    return true;
+async function togglePageAsync(id: string): Promise<boolean> {
+  const became = !pageIds.has(id);
+  try {
+    await api.updateNode({ id, is_page: became });
+    // Optimistic: update cache, then refresh from tree on next load
+    if (became) pageIds.add(id);
+    else pageIds.delete(id);
+    return became;
+  } catch {
+    return !became;
   }
 }
 
@@ -185,7 +220,7 @@ function findPageAncestorInBreadcrumbs(): OutlineNode | null {
 
   // Find the last (deepest) page node in the breadcrumbs
   for (let i = breadcrumbs.length - 1; i >= 0; i--) {
-    if (pageIds.has(breadcrumbs[i].id)) {
+    if (breadcrumbs[i].is_page) {
       return breadcrumbs[i];
     }
   }
@@ -263,7 +298,7 @@ function updateAncestorPanel(): void {
   // Find the page ancestor in breadcrumbs
   let pageIndex = -1;
   for (let i = breadcrumbs.length - 1; i >= 0; i--) {
-    if (pageIds.has(breadcrumbs[i].id)) {
+    if (breadcrumbs[i].is_page) {
       pageIndex = i;
       break;
     }
@@ -438,7 +473,8 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
-    loadPageIds();
+    await migrateLegacyPageIds();
+    syncPageCacheFromStore();
     loadBreadcrumbPref();
     injectCSS();
 
@@ -462,6 +498,7 @@ const plugin: RendererPlugin = {
 
     // React to zoom changes
     unsubStore = store.subscribe((state) => {
+      syncPageCacheFromStore();
       if (state.zoomedNodeId !== lastZoomedId) {
         lastZoomedId = state.zoomedNodeId;
         requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
@@ -478,12 +515,12 @@ const plugin: RendererPlugin = {
       name: "Toggle Page Mode",
       category: "Page",
       keywords: ["page", "wikilink", "toggle"],
-      execute: () => {
+      execute: async () => {
         const state = store.getState();
         const focusedId = state.focusedNodeId;
         if (!focusedId) return;
 
-        const became = togglePage(focusedId);
+        const became = await togglePageAsync(focusedId);
         requestAnimationFrame(() => scanAndTransform());
 
         if (became) {

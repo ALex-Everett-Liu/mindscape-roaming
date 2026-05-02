@@ -104,6 +104,10 @@ export class OutlineService {
         node = this.repo.updateExpanded(params.id, params.is_expanded);
       }
 
+      if (params.is_page !== undefined) {
+        node = this.repo.updatePage(params.id, params.is_page);
+      }
+
       if (!node) {
         node = this.repo.getById(params.id);
       }

@@ -10,6 +10,7 @@ export class NodeRepository {
   private stmtInsert!: Statement;
   private stmtUpdateContent!: Statement;
   private stmtUpdateExpanded!: Statement;
+  private stmtUpdatePage!: Statement;
   private stmtUpdatePosition!: Statement;
   private stmtUpdateParent!: Statement;
   private stmtDelete!: Statement;
@@ -32,8 +33,8 @@ export class NodeRepository {
     );
 
     this.stmtInsert = this.db.prepare(`
-      INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, created_at, updated_at, is_deleted)
-      VALUES ($id, $content, $parent_id, $position, $is_expanded, $created_at, $updated_at, 0)
+      INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, is_page, created_at, updated_at, is_deleted)
+      VALUES ($id, $content, $parent_id, $position, $is_expanded, $is_page, $created_at, $updated_at, 0)
     `);
 
     this.stmtUpdateContent = this.db.prepare(
@@ -42,6 +43,10 @@ export class NodeRepository {
 
     this.stmtUpdateExpanded = this.db.prepare(
       "UPDATE outline_nodes SET is_expanded = ?, updated_at = ? WHERE id = ?"
+    );
+
+    this.stmtUpdatePage = this.db.prepare(
+      "UPDATE outline_nodes SET is_page = ?, updated_at = ? WHERE id = ?"
     );
 
     this.stmtUpdatePosition = this.db.prepare(
@@ -79,6 +84,7 @@ export class NodeRepository {
       parent_id: row.parent_id as string | null,
       position: row.position as number,
       is_expanded: Boolean(row.is_expanded),
+      is_page: Boolean(row.is_page),
       created_at: row.created_at as number,
       updated_at: row.updated_at as number,
     };
@@ -179,6 +185,7 @@ export class NodeRepository {
       $parent_id: parentId,
       $position: position,
       $is_expanded: 1,
+      $is_page: 0,
       $created_at: now,
       $updated_at: now,
     });
@@ -200,6 +207,11 @@ export class NodeRepository {
 
   updateExpanded(id: string, isExpanded: boolean): OutlineNode {
     this.stmtUpdateExpanded.run(isExpanded ? 1 : 0, Date.now(), id);
+    return this.getById(id)!;
+  }
+
+  updatePage(id: string, isPage: boolean): OutlineNode {
+    this.stmtUpdatePage.run(isPage ? 1 : 0, Date.now(), id);
     return this.getById(id)!;
   }
 

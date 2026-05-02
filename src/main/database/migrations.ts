@@ -69,6 +69,13 @@ const migrations: Migration[] = [
       END;
     `,
   },
+  {
+    version: 5,
+    name: "add_is_page_column",
+    up: `
+      ALTER TABLE outline_nodes ADD COLUMN is_page INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 export function runMigrations(db: Database): void {

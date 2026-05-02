@@ -29,6 +29,7 @@ const plugin: MainPlugin = {
               parent_id: (row.parent_id as string | null) ?? null,
               position: row.position as number,
               is_expanded: Boolean(row.is_expanded),
+              is_page: Boolean(row.is_page),
               created_at: row.created_at as number,
               updated_at: row.updated_at as number,
             },
@@ -55,6 +56,7 @@ const plugin: MainPlugin = {
             parent_id: (r.parent_id as string | null) ?? null,
             position: r.position as number,
             is_expanded: Boolean(r.is_expanded),
+            is_page: Boolean(r.is_page),
             created_at: r.created_at as number,
             updated_at: r.updated_at as number,
           }));

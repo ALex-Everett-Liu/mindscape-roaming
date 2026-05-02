@@ -129,6 +129,7 @@ const plugin: MainPlugin = {
             parent_id: r.parent_id,
             position: r.position,
             is_expanded: Boolean(r.is_expanded),
+            is_page: Boolean(r.is_page),
             created_at: r.created_at,
             updated_at: r.updated_at,
             breadcrumb,

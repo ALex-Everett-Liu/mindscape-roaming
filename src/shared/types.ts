@@ -10,6 +10,7 @@ export interface OutlineNode {
   parent_id: string | null;
   position: number;
   is_expanded: boolean;
+  is_page: boolean;
   created_at: number;
   updated_at: number;
 }
@@ -37,6 +38,7 @@ export interface UpdateNodeParams {
   id: string;
   content?: string;
   is_expanded?: boolean;
+  is_page?: boolean;
 }
 
 export interface MoveNodeParams {
