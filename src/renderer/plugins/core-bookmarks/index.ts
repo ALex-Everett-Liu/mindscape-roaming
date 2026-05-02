@@ -9,6 +9,7 @@ let bookmarkNodeIds = new Set<string>();
 let unsubStore: (() => void) | null = null;
 let ctxRef: RendererPluginContext | null = null;
 let styleEl: HTMLStyleElement | null = null;
+let unsubBookmarkChanged: (() => void) | null = null;
 
 async function refreshBookmarks(): Promise<void> {
   if (!panel) return;
@@ -253,6 +254,11 @@ const plugin: RendererPlugin = {
         await refreshBookmarks();
       },
     });
+
+    // Listen for bookmark changes from other plugins (e.g. context menu)
+    unsubBookmarkChanged = ctx.on("bookmark:changed", () => {
+      void refreshBookmarks();
+    });
   },
 
   async onUnload() {
@@ -262,6 +268,8 @@ const plugin: RendererPlugin = {
     });
     unsubStore?.();
     unsubStore = null;
+    unsubBookmarkChanged?.();
+    unsubBookmarkChanged = null;
     panel?.remove();
     panel = null;
     bookmarkNodeIds.clear();

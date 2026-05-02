@@ -843,11 +843,18 @@ function showContextMenu(x: number, y: number, nodeId: string): void {
     <div class="context-menu-item" data-action="link-to">
       Create link to here &#8592;
     </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" data-action="bookmark-pin">
+      &#9733; Pin to Bookmarks
+    </div>
+    <div class="context-menu-item" data-action="bookmark-unpin">
+      &#10005; Unpin from Bookmarks
+    </div>
   `;
 
   // Position
   const menuWidth = 260;
-  const menuHeight = 120; // approximate
+  const menuHeight = 160; // approximate (6 items + dividers)
   let px = x;
   let py = y;
   if (px + menuWidth > window.innerWidth) px = window.innerWidth - menuWidth - 8;
@@ -871,8 +878,21 @@ function showContextMenu(x: number, y: number, nodeId: string): void {
         void openCreateModal(nodeId);
       } else if (action === "link-to") {
         // "Link to here" = current node is the target, need to pick source
-        // For simplicity, reverse: set the focused node as target and prompt for source
         void openCreateModalWithTarget(nodeId);
+      } else if (action === "bookmark-pin") {
+        void api.pinBookmark({ nodeId }).then((r) => {
+          if (r.success) {
+            showCopyToast("Pinned to Bookmarks");
+            void ctxRef?.emit("bookmark:changed");
+          }
+        });
+      } else if (action === "bookmark-unpin") {
+        void api.unpinBookmark({ nodeId }).then((r) => {
+          if (r.success) {
+            showCopyToast("Unpinned from Bookmarks");
+            void ctxRef?.emit("bookmark:changed");
+          }
+        });
       }
       destroyContextMenu();
     });
