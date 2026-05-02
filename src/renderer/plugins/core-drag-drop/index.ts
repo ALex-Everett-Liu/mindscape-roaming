@@ -7,12 +7,21 @@ import type { OutlineTreeNode } from "../../../shared/types";
 
 const DROP_TARGET_CLASS = "drag-drop-target";
 
+const debugLogs: string[] = [];
+function logDebug(msg: string): void {
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = `[${ts}] DND ${msg}`;
+  console.log(line);
+  debugLogs.push(line);
+}
+
 let styleEl: HTMLStyleElement | null = null;
 let listenersAttached = false;
 let treeContainer: Element | null = null;
 let mountTimer: ReturnType<typeof setTimeout> | null = null;
 let observer: MutationObserver | null = null;
 let draggedNodeId: string | null = null;
+let dragoverLoggedThisDrag = false;
 let dragHandlers: {
   onDragStart: EventListener;
   onDragOver: EventListener;
@@ -53,7 +62,9 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
+    logDebug("onLoad start");
     setDragDropEnabled(true);
+    logDebug("dragDropEnabled set to true");
 
     // Inject drag-drop CSS (reparent-only: single drop target style)
     styleEl = document.createElement("style");
@@ -71,21 +82,36 @@ const plugin: RendererPlugin = {
       }
     `;
     document.head.appendChild(styleEl);
+    logDebug("drag CSS injected");
 
     draggedNodeId = null;
 
     const onDragStart = (e: DragEvent) => {
       const nodeEl = (e.target as HTMLElement).closest(".outline-node[data-node-id]");
-      if (!nodeEl) return;
+      if (!nodeEl) {
+        logDebug(`dragstart: no .outline-node[data-node-id] ancestor for target ${(e.target as HTMLElement).tagName}.${(e.target as HTMLElement).className}`);
+        return;
+      }
       draggedNodeId = (nodeEl as HTMLElement).dataset.nodeId ?? null;
       if (draggedNodeId) {
         e.dataTransfer!.setData("text/plain", draggedNodeId);
         e.dataTransfer!.effectAllowed = "move";
+        dragoverLoggedThisDrag = false;
+        logDebug(`dragstart OK: node=${draggedNodeId} target.tag=${(e.target as HTMLElement).tagName}`);
+      } else {
+        logDebug(`dragstart FAIL: nodeEl found but dataset.nodeId is null; classes=${(nodeEl as HTMLElement).className}`);
       }
     };
 
     const onDragOver = (e: DragEvent) => {
-      if (!draggedNodeId) return;
+      if (!draggedNodeId) {
+        logDebug(`dragover SKIP: no draggedNodeId (dragstart never set it?)`);
+        return;
+      }
+      if (!dragoverLoggedThisDrag) {
+        logDebug(`dragover FIRST: preventDefault called, target=${(e.target as HTMLElement).tagName}.${(e.target as HTMLElement).className}`);
+        dragoverLoggedThisDrag = true;
+      }
       e.preventDefault();
       e.dataTransfer!.dropEffect = "move";
 
@@ -106,8 +132,12 @@ const plugin: RendererPlugin = {
     };
 
     const onDragEnd = () => {
+      if (!dragoverLoggedThisDrag && draggedNodeId) {
+        logDebug(`dragend: draggedNodeId=${draggedNodeId} but no dragover ever fired — drag was cancelled or rejected`);
+      }
       document.querySelectorAll(`.${DROP_TARGET_CLASS}`).forEach((el) => el.classList.remove(DROP_TARGET_CLASS));
       draggedNodeId = null;
+      dragoverLoggedThisDrag = false;
     };
 
     const onDrop = (e: DragEvent) => {
@@ -137,19 +167,40 @@ const plugin: RendererPlugin = {
     };
 
     const attachListeners = () => {
-      if (listenersAttached || !dragHandlers) return;
+      if (listenersAttached || !dragHandlers) {
+        logDebug(`attachListeners SKIP: listenersAttached=${listenersAttached} dragHandlers=${!!dragHandlers}`);
+        return;
+      }
       treeContainer = document.querySelector(".outline-tree") ?? document.querySelector(".app");
-      if (!treeContainer) return;
-
+      if (!treeContainer) {
+        logDebug(`attachListeners FAIL: no .outline-tree or .app in DOM`);
+        return;
+      }
+      logDebug(`attachListeners OK: container=${treeContainer.tagName}.${(treeContainer as HTMLElement).className}`);
       treeContainer.addEventListener("dragstart", dragHandlers.onDragStart);
       treeContainer.addEventListener("dragover", dragHandlers.onDragOver);
       treeContainer.addEventListener("dragend", dragHandlers.onDragEnd);
       treeContainer.addEventListener("drop", dragHandlers.onDrop);
       listenersAttached = true;
+      logDebug(`listeners attached: dragstart, dragover, dragend, drop`);
     };
 
     attachListeners();
     mountTimer = setTimeout(attachListeners, 500);
+
+    // Register debug log dump command
+    ctx.registerCommand({
+      id: "dnd-dump-logs",
+      name: "Dump Drag-Drop Debug Logs",
+      execute: () => {
+        const blob = new Blob([debugLogs.join("\n")], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `dnd-debug-${Date.now()}.txt`;
+        a.click();
+      },
+    });
+    logDebug("dump-logs command registered");
 
     observer = new MutationObserver(() => {
       if (!listenersAttached && document.querySelector(".outline-tree")) {
