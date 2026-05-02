@@ -57,14 +57,10 @@ function updateTop(): void {
 }
 
 function applyContentPush(push: boolean): void {
-  const tree = document.querySelector(".outline-tree");
-  const search = document.querySelector(".search-results");
   if (push) {
-    tree?.classList.add("sidebar-active");
-    search?.classList.add("sidebar-active");
+    document.body.classList.add("sidebar-active");
   } else {
-    tree?.classList.remove("sidebar-active");
-    search?.classList.remove("sidebar-active");
+    document.body.classList.remove("sidebar-active");
   }
 }
 
@@ -311,8 +307,8 @@ const plugin: RendererPlugin = {
         background: var(--bg, #1a1a2e);
       }
 
-      .outline-tree.sidebar-active,
-      .search-results.sidebar-active {
+      .sidebar-active .outline-tree,
+      .sidebar-active .search-results {
         margin-right: var(--sidebar-width);
         transition: margin-right 0.2s ease;
       }
