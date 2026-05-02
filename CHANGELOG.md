@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Sidebar/bookmarks theme support**: Replaced nonexistent CSS variables (`--bg-primary`, `--text-primary`) with the project's standard `--bg` / `--text` across the core-sidebar and core-bookmarks plugins. These variables didn't exist in any theme definition, causing the sidebar to always render with hardcoded dark-theme fallback colors regardless of the active theme (Organic, Light, etc.)
 
+- **Content push not surviving Preact re-renders**: The `sidebar-active` class was applied to `.outline-tree` directly, which Preact replaces on every re-render, losing the class. Fixed by applying the class to `document.body` instead and using `.sidebar-active .app > .outline-tree` as the CSS selector — targeting only the root tree, preventing nested trees from compounding `margin-right`
+
 ## [0.3.5] - 2026-05-02
 
 ### Added

@@ -307,8 +307,8 @@ const plugin: RendererPlugin = {
         background: var(--bg, #1a1a2e);
       }
 
-      .sidebar-active .outline-tree,
-      .sidebar-active .search-results {
+      .sidebar-active .app > .outline-tree,
+      .sidebar-active .app > .search-results {
         margin-right: var(--sidebar-width);
         transition: margin-right 0.2s ease;
       }
