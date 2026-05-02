@@ -132,6 +132,11 @@ function syncPageCacheFromStore(): void {
     if (node.is_page) next.add(node.id);
     stack.push(...node.children);
   }
+  // Also check breadcrumbs (the zoomed page node itself lives in breadcrumbs, not tree)
+  for (const crumb of store.getState().breadcrumbs) {
+    if (crumb.is_page) next.add(crumb.id);
+  }
+  console.log(`[page-mode] syncPageCache: ${pageIds.size} → ${next.size} pages (tree nodes: ${store.getState().tree.length}, crumbs: ${store.getState().breadcrumbs.length})`);
   pageIds = next;
 }
 
@@ -141,7 +146,9 @@ function isPage(id: string): boolean {
 
 async function togglePageAsync(id: string): Promise<boolean> {
   const became = !pageIds.has(id);
+  console.log(`[page-mode] togglePageAsync: id=${id}, became=${became}`);
   try {
+    store.markModified(id);
     await api.updateNode({ id, is_page: became });
     // Optimistic: update cache, then refresh from tree on next load
     if (became) pageIds.add(id);
@@ -348,6 +355,8 @@ function wrapPageContent(editor: HTMLElement, nodeId: string): void {
   if (editor.querySelector(".page-wikilink-wrapper")) return;
   if (editor.contains(document.activeElement)) return;
 
+  console.log(`[page-mode] wrapPageContent: wrapping editor for page node "${nodeId}"`);
+
   const wrapper = document.createElement("span");
   wrapper.className = "page-wikilink-wrapper";
   wrapper.setAttribute("contenteditable", "false");
@@ -377,22 +386,29 @@ function unwrapPageContent(editor: HTMLElement): void {
 
 /* ─── Focus handlers ─── */
 
+let focusForcingZoom = false;
+
 function handleFocusIn(e: FocusEvent): void {
   const target = e.target as HTMLElement | null;
   if (!target?.classList.contains("node-editor")) return;
 
   const nodeId = target.dataset.nodeId;
+  console.log(`[page-mode] focusin: editor nodeId=${nodeId}, isPage=${isPage(nodeId ?? '')}, zoomedId=${store.getState().zoomedNodeId}`);
   if (!nodeId || !isPage(nodeId)) return;
 
   const zoomedId = store.getState().zoomedNodeId;
   if (zoomedId !== nodeId) {
     // Not in page — blur and zoom in instead of editing
+    console.log(`[page-mode] focusin: NOT in page, zooming in to page node "${nodeId}"`);
+    focusForcingZoom = true;
     target.blur();
+    focusForcingZoom = false;
     void store.zoomIn(nodeId);
   }
 }
 
 function handleFocusOut(e: FocusEvent): void {
+  if (focusForcingZoom) return;
   const target = e.target as HTMLElement | null;
   if (!target?.classList.contains("node-editor")) return;
 
@@ -405,8 +421,17 @@ function handleFocusOut(e: FocusEvent): void {
 
 /* ─── Main scan loop ─── */
 
+let scanning = false;
+
 function scanAndTransform(): void {
+  if (scanning) {
+    console.log("[page-mode] scanAndTransform: RE-ENTRY GUARD, skipping");
+    return;
+  }
+  scanning = true;
+  try {
   const zoomedId = store.getState().zoomedNodeId;
+  console.log(`[page-mode] scanAndTransform: zoomedId=${zoomedId}, pageIds.size=${pageIds.size}`);
 
   const nodes = document.querySelectorAll<HTMLElement>(
     ".outline-node[data-node-id]"
@@ -433,6 +458,9 @@ function scanAndTransform(): void {
       nodeEl.classList.remove("in-page");
       unwrapPageContent(editor);
     }
+  }
+  } finally {
+    scanning = false;
   }
 }
 
