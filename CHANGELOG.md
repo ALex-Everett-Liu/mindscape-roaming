@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backlinks panel ref resolution**: Backlink items now resolve `((uuid))` references in their content to show actual text instead of raw UUID strings, making the context of each backlink immediately readable
 - **Page Ancestors panel**: When breadcrumb truncation is enabled inside a page, a bottom panel shows clickable ancestor nodes above the page boundary (e.g. `2 Ancestors above this page`), providing a way to navigate back out of the page scope
 
+### Changed
+
+- **Page state moved to database**: `is_page` is now an `outline_nodes` column (migrated automatically on startup), replacing localStorage. Page state survives reloads, profile switches, and data clearing — consistent with `is_expanded`
+
 ## [0.3.3] - 2026-05-02
 
 ### Added
@@ -333,7 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.0...v0.3.1
