@@ -512,6 +512,26 @@ const plugin: RendererPlugin = {
 
     // Register commands
     ctx.registerCommand({
+      id: "page-mode-remove",
+      name: "Remove Page Mode",
+      category: "Page",
+      keywords: ["page", "wikilink", "remove", "unpage", "normal"],
+      execute: () => {
+        const state = store.getState();
+        // Prefer zoomed node (when inside a page), fall back to focused node
+        const targetId = state.zoomedNodeId || state.focusedNodeId;
+        if (!targetId) return;
+        if (!isPage(targetId)) {
+          showCopyToast("Current node is not a page");
+          return;
+        }
+        store.togglePage(targetId);
+        requestAnimationFrame(() => scanAndTransform());
+        showCopyToast("Removed page mode. Children are visible again.");
+      },
+    });
+
+    ctx.registerCommand({
       id: "page-mode-toggle",
       name: "Toggle Page Mode",
       category: "Page",

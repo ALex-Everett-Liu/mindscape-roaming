@@ -223,13 +223,26 @@ class Store {
   }
 
   togglePage(id: string): void {
-    const node = this.findNodeInTree(id);
-    if (!node) return;
-    const newPage = !node.is_page;
+    let node = this.findNodeInTree(id);
+    if (node) {
+      const newPage = !node.is_page;
+      this.updateNodeInTree(id, { is_page: newPage });
+      this.markModified(id);
+      api.updateNode({ id, is_page: newPage }).then((result) => {
+        if (!result.success) console.error("togglePage failed:", result.error);
+      });
+      return;
+    }
 
-    this.updateNodeInTree(id, { is_page: newPage });
+    // Node may be the zoomed node (in breadcrumbs, not tree)
+    const crumbIndex = this.state.breadcrumbs.findIndex(b => b.id === id);
+    if (crumbIndex === -1) return;
+    const crumb = this.state.breadcrumbs[crumbIndex];
+    const newPage = !crumb.is_page;
+    const updated = [...this.state.breadcrumbs];
+    updated[crumbIndex] = { ...crumb, is_page: newPage };
+    this.update({ breadcrumbs: updated });
     this.markModified(id);
-
     api.updateNode({ id, is_page: newPage }).then((result) => {
       if (!result.success) console.error("togglePage failed:", result.error);
     });
