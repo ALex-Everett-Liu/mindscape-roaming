@@ -222,7 +222,7 @@ body {
 .outline-tree {
   list-style: none;
   margin: 0;
-  padding: 4px 0 24px 24px;
+  padding: 4px 0 50vh 24px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -342,7 +342,7 @@ body {
 .search-results {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 16px 50vh 16px;
 }
 
 .search-result {

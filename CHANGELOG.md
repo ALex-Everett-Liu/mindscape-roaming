@@ -21,7 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bottom panels covering scrollbar**: Both backlinks panel and page ancestors panel now leave 17px of right-edge space so the main content scrollbar remains draggable
+- **Content hidden behind bottom panels**: `.outline-tree` and `.search-results` now have `padding-bottom: 50vh` so the last nodes scroll well above the fixed bottom panels, and final content rests at eye level rather than at the bottom of the screen
 - **Page Ancestors panel**: Root-level pages (no parents in the hierarchy) now show "Exit page — return to root view" instead of an empty panel, preventing lock-in when inside a root-level page
+- escape FTS5 special characters in search queries: The unicode61 tokenizer splits tokens on hyphens and other non-alphanumeric characters, but the MATCH parser interprets hyphens as column operators (e.g. 'node-a' becomes 'node NOT a'). Token terms containing special characters are now wrapped in double quotes and token-separator chars replaced with spaces to match tokenizer behavior. The exact match fallback also uses escaping now.
 
 ## [0.3.4] - 2026-05-02
 

@@ -44,6 +44,25 @@
 - Moving a git tag (`git tag -f`) requires the user to explicitly say "move the tag."
 - Do not assume a bug-fix or feature warrants a version bump.
 
+## Data Integrity — File Safety
+
+The agent is absolutely forbidden from performing any operation that can **overwrite, delete, or cause loss of user file content**. This includes:
+
+- `git checkout -- <file>` — overwrites working tree file with index version, wiping uncommitted changes
+- `git reset --hard` — resets working tree and index, destroying all uncommitted work
+- `git clean -f` / `git clean -fd` — deletes untracked files/directories
+- `rm`, `del`, `Remove-Item` — deletes files
+- `mv`, `move`, `Rename-Item` in overwrite mode
+- Shell redirection `> file` or `Set-Content file` — overwrites files silently
+- `git restore <file>` — same effect as `git checkout -- <file>`
+- Any `Write` tool call that overwrites a file the user has manually edited
+
+**Before any command that touches the filesystem beyond the files the agent itself just wrote, ASK THE USER.**
+
+The agent must treat every uncommitted file as the user's property. The agent has NO authority to discard, overwrite, or restore any file without explicit user confirmation.
+
+If the agent discovers it made an unauthorized edit to a file, it must **tell the user** — never try to silently undo it with `git checkout` or similar.
+
 ## PowerShell Environment
 
 This project runs on **Windows PowerShell**. Multi-line `git commit` messages must use PowerShell's backtick-newline syntax (`` `n ``), **not** bash-style `\n` or PowerShell block strings with literal newlines. For example:
