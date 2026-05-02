@@ -310,75 +310,12 @@ const CSS = `
   border-radius: 6px;
 }
 
-/* ─── Context menu ─── */
-.context-menu {
-  position: fixed;
-  z-index: 2000;
-  background: var(--bg-secondary, #16213e);
-  border: 1px solid var(--border, #333);
-  border-radius: 8px;
-  padding: 4px 0;
-  min-width: 220px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-
-.context-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text, #e0e0e0);
-  transition: background 0.1s;
-}
-
-.context-menu-item:hover {
-  background: var(--focus-bg, rgba(255,255,255,0.05));
-}
-
-.context-menu-item kbd {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-muted, #888);
-  font-family: var(--font-mono, monospace);
-}
-
-.context-menu-divider {
-  height: 1px;
-  background: var(--border, #333);
-  margin: 4px 0;
-}
-
-/* ─── Edit link panel in sidebar ─── */
-.link-item-edit {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--text-muted, #888);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0 4px;
-  border-radius: 3px;
-  line-height: 1;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-
-.link-item:hover .link-item-edit {
-  opacity: 1;
-}
-
-.link-item-edit:hover {
-  color: var(--accent, #4fc3f7);
-}
 `;
 
 let styleEl: HTMLStyleElement | null = null;
 let observer: MutationObserver | null = null;
 let unsubStore: (() => void) | null = null;
 let activeNodeId: string | null = null;
-let contextMenuEl: HTMLDivElement | null = null;
 let modalEl: HTMLDivElement | null = null;
 let linksTabPanel: HTMLElement | null = null;
 let ctxRef: RendererPluginContext | null = null;
@@ -817,102 +754,6 @@ function updateSearchSelection(items: NodeListOf<Element>, idx: number): void {
   });
 }
 
-/* ─── Context menu ─── */
-
-function destroyContextMenu(): void {
-  if (contextMenuEl) {
-    contextMenuEl.remove();
-    contextMenuEl = null;
-  }
-}
-
-function showContextMenu(x: number, y: number, nodeId: string): void {
-  destroyContextMenu();
-
-  contextMenuEl = document.createElement("div");
-  contextMenuEl.className = "context-menu";
-
-  contextMenuEl.innerHTML = `
-    <div class="context-menu-item" data-action="copy-ref">
-      Copy block reference ((id)) <kbd>Ctrl+Shift+C</kbd>
-    </div>
-    <div class="context-menu-divider"></div>
-    <div class="context-menu-item" data-action="link-from">
-      Create link from here &#8594;
-    </div>
-    <div class="context-menu-item" data-action="link-to">
-      Create link to here &#8592;
-    </div>
-    <div class="context-menu-divider"></div>
-    <div class="context-menu-item" data-action="bookmark-pin">
-      &#9733; Pin to Bookmarks
-    </div>
-    <div class="context-menu-item" data-action="bookmark-unpin">
-      &#10005; Unpin from Bookmarks
-    </div>
-  `;
-
-  // Position
-  const menuWidth = 260;
-  const menuHeight = 160; // approximate (6 items + dividers)
-  let px = x;
-  let py = y;
-  if (px + menuWidth > window.innerWidth) px = window.innerWidth - menuWidth - 8;
-  if (py + menuHeight > window.innerHeight) py = window.innerHeight - menuHeight - 8;
-  contextMenuEl.style.left = `${px}px`;
-  contextMenuEl.style.top = `${py}px`;
-
-  document.body.appendChild(contextMenuEl);
-
-  // Click actions
-  contextMenuEl.querySelectorAll(".context-menu-item").forEach((item) => {
-    item.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const action = (item as HTMLElement).dataset.action;
-      if (action === "copy-ref") {
-        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
-          showCopyToast("Copied block reference");
-        });
-      } else if (action === "link-from") {
-        void openCreateModal(nodeId);
-      } else if (action === "link-to") {
-        // "Link to here" = current node is the target, need to pick source
-        void openCreateModalWithTarget(nodeId);
-      } else if (action === "bookmark-pin") {
-        void api.pinBookmark({ nodeId }).then((r) => {
-          if (r.success) {
-            showCopyToast("Pinned to Bookmarks");
-            void ctxRef?.emit("bookmark:changed");
-          }
-        });
-      } else if (action === "bookmark-unpin") {
-        void api.unpinBookmark({ nodeId }).then((r) => {
-          if (r.success) {
-            showCopyToast("Unpinned from Bookmarks");
-            void ctxRef?.emit("bookmark:changed");
-          }
-        });
-      }
-      destroyContextMenu();
-    });
-  });
-
-  // Dismiss on click outside or Escape
-  const dismiss = (e: Event) => {
-    if (e instanceof KeyboardEvent && e.key !== "Escape") return;
-    if (e instanceof MouseEvent && contextMenuEl?.contains(e.target as Node)) return;
-    destroyContextMenu();
-    document.removeEventListener("mousedown", dismiss, true);
-    document.removeEventListener("keydown", dismiss);
-  };
-  setTimeout(() => {
-    // Delayed to avoid the triggering mousedown from also dismissing
-    document.addEventListener("mousedown", dismiss, true);
-    document.addEventListener("keydown", dismiss);
-  }, 0);
-}
-
 async function openCreateModalWithTarget(targetId: string): Promise<void> {
   // Let user pick source, treat current clicked node as target
   destroyModal();
@@ -1168,23 +1009,37 @@ const plugin: RendererPlugin = {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Context menu: intercept right-click on bullets (capture phase)
-    document.addEventListener(
-      "contextmenu",
-      (e) => {
-        const bullet = (e.target as HTMLElement).closest(".bullet") as HTMLElement | null;
-        if (!bullet) return;
-        const nodeEl = bullet.closest(".outline-node") as HTMLElement | null;
-        if (!nodeEl) return;
-        const nodeId = nodeEl.dataset.nodeId;
-        if (!nodeId) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-        showContextMenu(e.clientX, e.clientY, nodeId);
+    // Register context menu items
+    await ctx.emit("context-menu:register", {
+      id: "copy-ref",
+      pluginId: "third-party-links",
+      label: "Copy block reference ((id))",
+      shortcut: "Ctrl+Shift+C",
+      execute: (nodeId: string) => {
+        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
+          showCopyToast("Copied block reference");
+        });
       },
-      true
-    );
+    });
+
+    await ctx.emit("context-menu:register", {
+      id: "link-from",
+      pluginId: "third-party-links",
+      label: "Create link from here \u2192",
+      dividerBefore: true,
+      execute: (nodeId: string) => {
+        void openCreateModal(nodeId);
+      },
+    });
+
+    await ctx.emit("context-menu:register", {
+      id: "link-to",
+      pluginId: "third-party-links",
+      label: "Create link to here \u2190",
+      execute: (nodeId: string) => {
+        void openCreateModalWithTarget(nodeId);
+      },
+    });
 
     // Store subscription
     unsubStore = store.subscribe((state) => {
@@ -1238,8 +1093,14 @@ const plugin: RendererPlugin = {
     });
     removeCSS();
     removeAllLinkBadges();
-    destroyContextMenu();
     destroyModal();
+
+    // Unregister context menu items
+    if (ctxRef) {
+      await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "copy-ref" });
+      await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "link-from" });
+      await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "link-to" });
+    }
 
     if (observer) {
       observer.disconnect();

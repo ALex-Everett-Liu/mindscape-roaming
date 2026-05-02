@@ -255,13 +255,40 @@ const plugin: RendererPlugin = {
       },
     });
 
-    // Listen for bookmark changes from other plugins (e.g. context menu)
+    // Listen for bookmark changes from other sources
     unsubBookmarkChanged = ctx.on("bookmark:changed", () => {
       void refreshBookmarks();
+    });
+
+    // Register context menu items
+    await ctx.emit("context-menu:register", {
+      id: "bookmark-pin",
+      pluginId: "core-bookmarks",
+      label: "\u2605 Pin to Bookmarks",
+      dividerBefore: true,
+      execute: async (nodeId: string) => {
+        await api.pinBookmark({ nodeId });
+        bookmarkNodeIds.add(nodeId);
+        await refreshBookmarks();
+      },
+    });
+
+    await ctx.emit("context-menu:register", {
+      id: "bookmark-unpin",
+      pluginId: "core-bookmarks",
+      label: "\u2715 Unpin from Bookmarks",
+      execute: async (nodeId: string) => {
+        await api.unpinBookmark({ nodeId });
+        bookmarkNodeIds.delete(nodeId);
+        await refreshBookmarks();
+      },
     });
   },
 
   async onUnload() {
+    await ctxRef?.emit("context-menu:unregister", { pluginId: "core-bookmarks", id: "bookmark-pin" });
+    await ctxRef?.emit("context-menu:unregister", { pluginId: "core-bookmarks", id: "bookmark-unpin" });
+
     await ctxRef?.emit("sidebar:unregister-tab", {
       pluginId: "core-bookmarks",
       tabId: "bookmarks",
