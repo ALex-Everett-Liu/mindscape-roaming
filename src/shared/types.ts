@@ -70,6 +70,38 @@ export interface SearchParams {
   limit?: number;
 }
 
+// ─── Link Types ──────────────────────────────────────
+export interface LinkRecord {
+  id: string;
+  source_id: string;
+  target_id: string;
+  category: string;
+  weight: number;
+  created_at: number;
+}
+
+export interface LinkWithNode extends LinkRecord {
+  other_node: OutlineNode | null;
+  direction: "outgoing" | "incoming";
+}
+
+export interface CreateLinkParams {
+  source_id: string;
+  target_id: string;
+  category?: string;
+  weight?: number;
+}
+
+export interface UpdateLinkParams {
+  id: string;
+  category?: string;
+  weight?: number;
+}
+
+export interface GetNodeLinksParams {
+  node_id: string;
+}
+
 // ─── RPC Response Wrappers ───────────────────────────
 export interface RpcResult<T> {
   success: boolean;

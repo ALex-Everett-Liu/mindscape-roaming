@@ -12,6 +12,11 @@ import type {
   SearchParams,
   RpcResult,
   PluginInfo,
+  LinkRecord,
+  LinkWithNode,
+  CreateLinkParams,
+  UpdateLinkParams,
+  GetNodeLinksParams,
 } from "../../shared/types";
 
 type OutlinerRpcRequest = {
@@ -38,6 +43,11 @@ type OutlinerRpcRequest = {
   commitSave: (params?: Record<string, never>) => Promise<RpcResult<{ success: boolean }>>;
   restoreFromBackup: (params?: Record<string, never>) => Promise<RpcResult<{ success: boolean; error?: string }>>;
   hasBackup: (params?: Record<string, never>) => Promise<RpcResult<boolean>>;
+  createLink: (params: CreateLinkParams) => Promise<RpcResult<LinkRecord>>;
+  getNodeLinks: (params: GetNodeLinksParams) => Promise<RpcResult<LinkWithNode[]>>;
+  getLinkCounts: (params?: Record<string, never>) => Promise<RpcResult<Record<string, { total: number; outgoing: number; incoming: number }>>>;
+  deleteLink: (params: { id: string }) => Promise<RpcResult<void>>;
+  updateLink: (params: UpdateLinkParams) => Promise<RpcResult<LinkRecord>>;
 };
 
 let rpcRequest: OutlinerRpcRequest | null = null;
@@ -78,4 +88,9 @@ export const api = {
   commitSave: () => getRpc().commitSave({}),
   restoreFromBackup: () => getRpc().restoreFromBackup({}),
   hasBackup: () => getRpc().hasBackup({}),
+  createLink: (params: CreateLinkParams) => getRpc().createLink(params),
+  getNodeLinks: (params: GetNodeLinksParams) => getRpc().getNodeLinks(params),
+  getLinkCounts: () => getRpc().getLinkCounts({}),
+  deleteLink: (id: string) => getRpc().deleteLink({ id }),
+  updateLink: (params: UpdateLinkParams) => getRpc().updateLink(params),
 };

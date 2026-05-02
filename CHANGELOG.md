@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-05-02
+
+### Added
+
+- **Node Links plugin** (`third-party-links`, community, disabled by default): Create directed, weighted, categorized links between outline nodes — turning the outliner into a knowledge graph
+  - **node_links database table**: New SQLite table with `id, source_id, target_id, category, weight, created_at`, indexes on both source and target, foreign key references to `outline_nodes`
+  - **Resizable right sidebar**: Manual toggle, pushes main content left, drag left edge to resize (200–600px, persisted in `localStorage`). Shows outgoing and incoming links with directional arrows, category, and weight
+  - **Link creation modal**: Command palette ("Create Link") or right-click context menu → search for target node via FTS5 with keyboard navigation (↑↓/Enter), set category and weight (0.00–10.00)
+  - **Right-click context menu**: Right-click any bullet shows "Copy block reference ((id))", "Create link from here →", and "Create link to here ←"
+  - **Link count badges**: Each node shows an accent-colored badge indicating how many links involve it
+  - **Inline edit/delete**: Edit link category and weight, or delete links, directly from the sidebar
+
+### Fixed
+
+- **Page Ancestors panel**: Root-level pages (no parents in the hierarchy) now show "Exit page — return to root view" instead of an empty panel, preventing lock-in when inside a root-level page
+
 ## [0.3.4] - 2026-05-02
 
 ### Added
@@ -348,7 +364,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.1...v0.3.2

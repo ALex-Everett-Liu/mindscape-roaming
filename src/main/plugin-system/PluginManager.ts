@@ -145,6 +145,16 @@ export class PluginManager {
         getBlockBacklinks: (params: { id: string }) => wrap("getBlockBacklinks", r.get("getBlockBacklinks"))(params),
         getBacklinkCounts: (params?: Record<string, never>) => wrap("getBacklinkCounts", r.get("getBacklinkCounts"))(params),
 
+        // Node Links (third-party-links plugin)
+        createLink: (params: { source_id: string; target_id: string; category?: string; weight?: number }) =>
+          wrap("createLink", r.get("createLink"))(params),
+        getNodeLinks: (params: { node_id: string }) =>
+          wrap("getNodeLinks", r.get("getNodeLinks"))(params),
+        getLinkCounts: (params?: Record<string, never>) => wrap("getLinkCounts", r.get("getLinkCounts"))(params),
+        deleteLink: (params: { id: string }) => wrap("deleteLink", r.get("deleteLink"))(params),
+        updateLink: (params: { id: string; category?: string; weight?: number }) =>
+          wrap("updateLink", r.get("updateLink"))(params),
+
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),
         enablePlugin: (p: { pluginId: string }) =>
