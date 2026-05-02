@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reflexive focus trap fixed: leaving a page no longer auto-re-enters it (400ms debounce on focusin after zoom change)
   - **Remove Page Mode** command added — targets the currently zoomed node when inside a page
   - MutationObserver feedback loops prevented with re-entrancy guards and content-diff checks
+  - Page Ancestors panel now shows "Exit page — return to root view" for root-level pages (page at breadcrumb index 0, no ancestors above), preventing lock-in when the page node has no parents in the hierarchy
 
 ## [0.3.3] - 2026-05-02
 

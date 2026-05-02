@@ -255,21 +255,52 @@ function updateAncestorPanel(): void {
     }
   }
 
-  // No page ancestor, or page is at root level — nothing hidden
-  if (pageIndex <= 0) {
+  // No page ancestor found at all
+  if (pageIndex < 0) {
     ancestorsPanel.style.display = "none";
     lastAncestorHTML = "";
+    return;
+  }
+
+  // Root-level page: no hidden ancestors, but still need an exit hatch
+  if (pageIndex === 0) {
+    ancestorsPanel.style.display = "block";
+
+    const backlinksPanel = document.querySelector<HTMLElement>(".backlinks-panel");
+    if (backlinksPanel && backlinksPanel.style.display !== "none") {
+      ancestorsPanel.style.bottom = `${backlinksPanel.offsetHeight}px`;
+    } else {
+      ancestorsPanel.style.bottom = "0";
+    }
+
+    const html = `
+      <div class="page-ancestors-header">
+        <span class="page-ancestors-count">0</span>
+        <span class="page-ancestors-label">Ancestors above this page</span>
+      </div>
+      <div class="page-ancestors-list">
+        <div class="page-ancestor-item" data-action="zoom-root">
+          <span class="page-ancestor-content">Exit page — return to root view</span>
+        </div>
+      </div>
+    `;
+
+    if (html === lastAncestorHTML) return;
+    lastAncestorHTML = html;
+    ancestorsPanel.innerHTML = html;
+
+    ancestorsPanel.querySelectorAll(".page-ancestor-item[data-action='zoom-root']").forEach((item) => {
+      item.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void store.zoomToRoot();
+      });
+    });
     return;
   }
 
   // Ancestors above the page boundary (index 0 to pageIndex - 1)
   const hiddenAncestors = breadcrumbs.slice(0, pageIndex);
-  if (hiddenAncestors.length === 0) {
-    ancestorsPanel.style.display = "none";
-    lastAncestorHTML = "";
-    return;
-  }
-
   const count = hiddenAncestors.length;
 
   // Offset bottom when backlinks panel is also visible
