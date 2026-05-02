@@ -124,48 +124,6 @@ function showCopyToast(message: string): void {
 
 /* ─── Page ID cache (synced from tree data) ─── */
 
-const LEGACY_PAGE_IDS_KEY = "mindscape_page_ids";
-const MIGRATED_FLAG = "mindscape_page_db_migrated";
-
-async function migrateLegacyPageIds(): Promise<void> {
-  try {
-    if (localStorage.getItem(MIGRATED_FLAG) === "1") return;
-    const raw = localStorage.getItem(LEGACY_PAGE_IDS_KEY);
-    if (!raw) {
-      localStorage.setItem(MIGRATED_FLAG, "1");
-      return;
-    }
-    const ids: string[] = JSON.parse(raw);
-    if (ids.length === 0) {
-      localStorage.removeItem(LEGACY_PAGE_IDS_KEY);
-      localStorage.setItem(MIGRATED_FLAG, "1");
-      return;
-    }
-    console.log(`[page-mode] Migrating ${ids.length} legacy page IDs to DB...`);
-    let count = 0;
-    for (const id of ids) {
-      try {
-        await api.updateNode({ id, is_page: true });
-        count++;
-      } catch {
-        /* node may no longer exist */
-      }
-    }
-    localStorage.removeItem(LEGACY_PAGE_IDS_KEY);
-    localStorage.setItem(MIGRATED_FLAG, "1");
-    console.log(`[page-mode] Migrated ${count}/${ids.length} page IDs to DB`);
-    // Reload the tree so is_page values are picked up from DB
-    const zoomed = store.getState().zoomedNodeId;
-    if (zoomed) {
-      await store.zoomIn(zoomed);
-    } else {
-      await store.initialLoad();
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
 function syncPageCacheFromStore(): void {
   const next = new Set<string>();
   const stack = [...store.getState().tree];
@@ -284,13 +242,17 @@ function createAncestorsPanel(): HTMLDivElement {
 function updateAncestorPanel(): void {
   if (!ancestorsPanel) return;
 
+  console.log(`[page-ancestors] updateAncestorPanel — truncate=${breadcrumbTruncate}, crumbs=[${store.getState().breadcrumbs.map(b => b.content).join(' > ')}]`);
+
   if (!breadcrumbTruncate) {
+    console.log("[page-ancestors] hiding: breadcrumb truncation disabled");
     ancestorsPanel.style.display = "none";
     return;
   }
 
   const breadcrumbs = store.getState().breadcrumbs;
   if (breadcrumbs.length === 0) {
+    console.log("[page-ancestors] hiding: no breadcrumbs in store");
     ancestorsPanel.style.display = "none";
     return;
   }
@@ -304,8 +266,11 @@ function updateAncestorPanel(): void {
     }
   }
 
+  console.log(`[page-ancestors] pageIndex=${pageIndex}${pageIndex >= 0 ? ` pageNode="${breadcrumbs[pageIndex].content}"` : ''}`);
+
   // No page ancestor, or page is at root level — nothing hidden
   if (pageIndex <= 0) {
+    console.log(`[page-ancestors] hiding: pageIndex=${pageIndex} (page not found or at root)`);
     ancestorsPanel.style.display = "none";
     return;
   }
@@ -313,11 +278,14 @@ function updateAncestorPanel(): void {
   // Ancestors above the page boundary (index 0 to pageIndex - 1)
   const hiddenAncestors = breadcrumbs.slice(0, pageIndex);
   if (hiddenAncestors.length === 0) {
+    console.log("[page-ancestors] hiding: no hidden ancestors above page");
     ancestorsPanel.style.display = "none";
     return;
   }
 
   const count = hiddenAncestors.length;
+
+  console.log(`[page-ancestors] showing ${count} ancestors: ${hiddenAncestors.map(a => a.content).join(' > ')}`);
 
   // Offset bottom when backlinks panel is also visible
   const backlinksPanel = document.querySelector<HTMLElement>(".backlinks-panel");
@@ -347,14 +315,37 @@ function updateAncestorPanel(): void {
   `;
 
   // Click to navigate to ancestor
-  ancestorsPanel.querySelectorAll(".page-ancestor-item").forEach((item) => {
+  const items = ancestorsPanel.querySelectorAll(".page-ancestor-item");
+  console.log(`[page-ancestors] attaching mousedown handlers to ${items.length} items`);
+  items.forEach((item) => {
     item.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
       const nodeId = (item as HTMLElement).dataset.nodeId;
-      if (nodeId) void store.zoomIn(nodeId);
+      const content = (item as HTMLElement).querySelector(".page-ancestor-content")?.textContent || "";
+      console.log(`[page-ancestors] mousedown: id=${nodeId}, content="${content}"`);
+      if (nodeId) {
+        console.log(`[page-ancestors] calling store.zoomIn("${nodeId}")`);
+        void store.zoomIn(nodeId);
+      }
     });
   });
+
+  // Delegate fallback: catch any click on the panel
+  ancestorsPanel.onmousedown = (e) => {
+    const target = (e.target as HTMLElement).closest(".page-ancestor-item") as HTMLElement | null;
+    if (target) {
+      const nodeId = target.dataset.nodeId;
+      const content = target.querySelector(".page-ancestor-content")?.textContent || "";
+      console.log(`[page-ancestors] DELEGATE mousedown: id=${nodeId}, content="${content}"`);
+      e.preventDefault();
+      e.stopPropagation();
+      if (nodeId) {
+        console.log(`[page-ancestors] DELEGATE calling store.zoomIn("${nodeId}")`);
+        void store.zoomIn(nodeId);
+      }
+    }
+  };
 }
 
 /* ─── CSS injection ─── */
@@ -473,7 +464,6 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
-    await migrateLegacyPageIds();
     syncPageCacheFromStore();
     loadBreadcrumbPref();
     injectCSS();
@@ -500,6 +490,7 @@ const plugin: RendererPlugin = {
     unsubStore = store.subscribe((state) => {
       syncPageCacheFromStore();
       if (state.zoomedNodeId !== lastZoomedId) {
+        console.log(`[page-ancestors] zoom changed: ${lastZoomedId} → ${state.zoomedNodeId}`);
         lastZoomedId = state.zoomedNodeId;
         requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
       }
