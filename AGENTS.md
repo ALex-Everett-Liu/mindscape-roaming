@@ -1,16 +1,48 @@
 # Agent Instructions for Mindscape Roaming
 
-## Git Workflow
+## Git Workflow — CRITICAL
 
-- **Do NOT run `git commit`, `git push`, `git tag`, or any git mutation automatically.**
-- After making edits, always show the user the diff and ask them to review, check, and test the changes.
-- You MAY suggest a commit message and/or version tag, but the user must execute the commit manually.
+**The agent is NEVER permitted to run `git commit`, `git push`, `git tag`, `git add`, `git tag -f`, `git checkout`, `git reset`, `git clean`, or any other git mutation command.** This is non-negotiable. Violating this rule overwrites the user's version history without consent.
+
+### The only valid workflow for committing:
+
+```
+1. Agent completes code changes
+2. Agent shows git diff to user
+3. Agent says "Review and test the changes. Ready to commit?"
+4. Agent STOPS and waits — does NOTHING until user responds
+5. User explicitly says "commit" or provides a commit command
+6. Agent runs ONLY the commit command the user approved
+```
+
+### What does NOT count as commit approval:
+
+- "do it" — means implement the code, NOT commit it
+- "yes, still under v0.3.5" — means keep working in that scope, NOT commit and tag
+- "ok" — means the user read what you wrote, NOT "proceed to commit"
+- Any message that does not contain the literal word "commit" is NOT commit approval
+
+### After implementing code:
+
+1. **Stop.** Do not commit. Do not tag. Do not update CHANGELOG.
+2. Show the diff.
+3. Say: *"Changes are ready. Review and test them. Let me know when to commit and what version/tag to use."*
+4. Wait for the user's explicit commit instruction.
+
+### When the user DOES ask to commit:
+
+- Ask for the **version number** and **commit type** (feat/fix/chore).
+- Do NOT assume a version. The user decides.
+- If the user says "commit as vX.Y.Z", ask whether to create/update the tag too.
+- After commit, do NOT push unless explicitly asked.
 
 ## Version Recording & Releases
 
-- **Always ask the user before creating a new version number, updating CHANGELOG.md with a release section, or adding a git tag.**
-- Do not assume a bug-fix or feature warrants a version bump. The user decides what constitutes a release.
-- It is fine to append changes to an `[Unreleased]` section in CHANGELOG.md without asking, but converting `[Unreleased]` into a numbered release requires explicit user approval.
+- **Never create a release version, update CHANGELOG.md with a numbered `[X.Y.Z]` header, or add a git tag without explicit user approval.**
+- You may append individual changes as bullet points to the `[Unreleased]` section without asking.
+- Adding a new `## [X.Y.Z] - DATE` header to CHANGELOG.md requires the user to specify the version number.
+- Moving a git tag (`git tag -f`) requires the user to explicitly say "move the tag."
+- Do not assume a bug-fix or feature warrants a version bump.
 
 ## PowerShell Environment
 
