@@ -104,7 +104,7 @@ class Store {
     return this.modifiedNodeIds.has(nodeId);
   }
 
-  private markModified(nodeId: string): void {
+  markModified(nodeId: string): void {
     this.modifiedNodeIds.add(nodeId);
     saveStateManager.notifyListeners();
   }
@@ -379,6 +379,7 @@ class Store {
 
       if (ok) {
         console.log("[Discard] Success, clearing modified and reloading tree");
+        const savedZoomId = this.state.zoomedNodeId;
         this.clearModified();
         this.update({
           unsavedCount: 0,
@@ -393,6 +394,22 @@ class Store {
         this.update({ tree: [], loading: true });
         await new Promise((r) => setTimeout(r, 100));
         await this.loadTree(true);
+
+        // Restore zoom position if the node still exists after discard
+        if (savedZoomId) {
+          try {
+            const check = await api.getNode(savedZoomId);
+            if (check.success && check.data) {
+              console.log("[Discard] Restoring zoom to:", savedZoomId);
+              this.update({ zoomedNodeId: savedZoomId });
+              persistZoomPreference(savedZoomId);
+              await this.loadTree(false);
+            }
+          } catch {
+            /* node gone, stay at root */
+          }
+        }
+
         console.log("[Discard] Done");
         return { success: true, discardedCount: count };
       } else {
