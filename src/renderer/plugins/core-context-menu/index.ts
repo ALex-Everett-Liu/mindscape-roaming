@@ -1,5 +1,6 @@
 import type { RendererPlugin } from "../../../shared/plugin-types";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
+import { manifest } from "./manifest";
 
 interface ContextMenuItem {
   id: string;
@@ -15,6 +16,18 @@ let menuEl: HTMLDivElement | null = null;
 let items: ContextMenuItem[] = [];
 let unsubRegister: (() => void) | null = null;
 let unsubUnregister: (() => void) | null = null;
+
+function showCopyToast(message: string): void {
+  const el = document.createElement("div");
+  el.className = "copy-toast";
+  el.textContent = message;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  }, 2000);
+}
 
 function destroyMenu(): void {
   if (menuEl) {
@@ -136,10 +149,23 @@ const plugin: RendererPlugin = {
     `;
     document.head.appendChild(styleEl);
 
-    // Listen for item registrations
+    // Built-in default item: Copy block reference
+    items.push({
+      id: "copy-ref",
+      pluginId: "core-context-menu",
+      label: "Copy block reference ((id))",
+      shortcut: "Ctrl+Shift+C",
+      execute: (nodeId: string) => {
+        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
+          showCopyToast("Copied block reference");
+        });
+      },
+    });
+
+    // Listen for item registrations from other plugins
     unsubRegister = ctx.on("context-menu:register", (payload: unknown) => {
       const def = payload as ContextMenuItem;
-      // Remove existing item with same id (from same plugin)
+      // Replace existing item with same id from same plugin
       items = items.filter((i) => !(i.id === def.id && i.pluginId === def.pluginId));
       items.push(def);
     });
@@ -149,7 +175,7 @@ const plugin: RendererPlugin = {
       items = items.filter((i) => !(i.id === id && i.pluginId === pluginId));
     });
 
-    // Right-click on bullets triggers context menu
+    // Intercept right-click on bullets (capture phase — fires before component-level handlers)
     document.addEventListener(
       "contextmenu",
       (e) => {

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-05-03
+
+### Added
+
+- **Centralized context menu infrastructure** (`core-context-menu`, built-in, essential): A single, unified right-click context menu that plugins register items into via `ctx.emit("context-menu:register", ...)` — analogous to how `core-command-palette` centralizes commands
+  - **Built-in default item**: "Copy block reference ((id))" with `Ctrl+Shift+C` shortcut — moved here from the `OutlineNode` component
+  - **Plugin registration API**: Plugins emit `context-menu:register` / `context-menu:unregister` with `{ id, pluginId, label, dividerBefore?, execute(nodeId) }`
+  - **Clean separation**: Each plugin owns its own items — no HTML injection into another plugin's menu
+
+### Changed
+
+- **Context menu refactored across all plugins**: Right-click context menu items (link creation, bookmark pin/unpin, copy block reference) are now registered by their respective plugins through the centralized `core-context-menu` plugin instead of being hardcoded in component JSX or scattered across plugin HTML
+- **`OutlineNode.ts` cleaned up**: Removed `showCopyToast` and `handleBulletContextMenu` — right-click behavior is now fully handled by the plugin system
+
 ## [0.3.6] - 2026-05-03
 
 ### Added

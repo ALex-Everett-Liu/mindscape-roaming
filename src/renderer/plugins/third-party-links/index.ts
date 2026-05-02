@@ -1011,18 +1011,6 @@ const plugin: RendererPlugin = {
 
     // Register context menu items
     await ctx.emit("context-menu:register", {
-      id: "copy-ref",
-      pluginId: "third-party-links",
-      label: "Copy block reference ((id))",
-      shortcut: "Ctrl+Shift+C",
-      execute: (nodeId: string) => {
-        void navigator.clipboard.writeText(`((${nodeId}))`).then(() => {
-          showCopyToast("Copied block reference");
-        });
-      },
-    });
-
-    await ctx.emit("context-menu:register", {
       id: "link-from",
       pluginId: "third-party-links",
       label: "Create link from here \u2192",
@@ -1097,7 +1085,6 @@ const plugin: RendererPlugin = {
 
     // Unregister context menu items
     if (ctxRef) {
-      await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "copy-ref" });
       await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "link-from" });
       await ctxRef.emit("context-menu:unregister", { pluginId: "third-party-links", id: "link-to" });
     }
