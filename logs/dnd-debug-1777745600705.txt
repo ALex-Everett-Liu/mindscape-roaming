@@ -1,0 +1,11 @@
+[18:12:56.775] DND onLoad start
+[18:12:56.777] DND dragDropEnabled set to true
+[18:12:56.777] DND drag CSS injected
+[18:12:56.777] DND attachListeners OK: container=UL.outline-tree
+[18:12:56.777] DND listeners attached: dragstart, dragover, dragend, drop
+[18:12:56.777] DND dump-logs command registered
+[18:12:57.282] DND attachListeners SKIP: listenersAttached=true dragHandlers=true
+[18:13:01.832] DND dragstart OK: node=019ddaa1-ab78-7000-aebe-ab87a2942548 target.tag=LI
+[18:13:01.858] DND dragover FIRST: preventDefault called, target=DIV.node-row
+[18:13:10.143] DND dragstart OK: node=019de9d4-a06e-7000-bd72-8aa69b0e14e6 target.tag=LI
+[18:13:10.154] DND dragover FIRST: preventDefault called, target=BUTTON.bullet 
