@@ -113,7 +113,7 @@ const REF_CSS = `
   position: fixed;
   bottom: 0;
   left: 0;
-  right: 0;
+  right: 17px;
   background: var(--bg, #1a1a2e);
   border-top: 1px solid var(--border, #333);
   z-index: 50;
