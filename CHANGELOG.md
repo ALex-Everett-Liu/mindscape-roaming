@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Page state moved to database**: `is_page` is now an `outline_nodes` column (migrated automatically on startup), replacing localStorage. Page state survives reloads, profile switches, and data clearing — consistent with `is_expanded`
 
+### Fixed
+
+- **Page mode multiple critical bugs**:
+  - `data-is-page` attribute now rendered by Preact (OutlineNode) instead of DOM manipulation, surviving all re-renders and preventing children from reappearing after Save
+  - `togglePage` updates in-memory tree before API call (mirrors `toggleExpanded`), preventing stale state after page toggle
+  - Page node detection fixed when zoomed — checks both tree and breadcrumbs (zoomed node lives in breadcrumbs, not tree)
+  - Reflexive focus trap fixed: leaving a page no longer auto-re-enters it (400ms debounce on focusin after zoom change)
+  - **Remove Page Mode** command added — targets the currently zoomed node when inside a page
+  - MutationObserver feedback loops prevented with re-entrancy guards and content-diff checks
+
 ## [0.3.3] - 2026-05-02
 
 ### Added

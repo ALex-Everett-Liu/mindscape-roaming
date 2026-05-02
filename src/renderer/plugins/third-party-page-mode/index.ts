@@ -122,16 +122,6 @@ function showCopyToast(message: string): void {
   }, 2000);
 }
 
-/* ─── Debug log buffer ─── */
-
-const debugLogs: string[] = [];
-function logDebug(msg: string): void {
-  const ts = new Date().toISOString().slice(11, 23);
-  const line = `[${ts}] ${msg}`;
-  console.log(line);
-  debugLogs.push(line);
-}
-
 /* ─── Page ID cache (synced from tree data) ─── */
 
 function syncPageCacheFromStore(): void {
@@ -146,7 +136,6 @@ function syncPageCacheFromStore(): void {
   for (const crumb of store.getState().breadcrumbs) {
     if (crumb.is_page) next.add(crumb.id);
   }
-  logDebug(`syncPageCache: ${pageIds.size} -> ${next.size} pages (tree:${store.getState().tree.length} crumbs:${store.getState().breadcrumbs.length})`);
   pageIds = next;
 }
 
@@ -359,8 +348,6 @@ function wrapPageContent(editor: HTMLElement, nodeId: string): void {
   if (editor.querySelector(".page-wikilink-wrapper")) return;
   if (editor.contains(document.activeElement)) return;
 
-  logDebug(`wrapPageContent: wrapping editor for page node "${nodeId}"`);
-
   const wrapper = document.createElement("span");
   wrapper.className = "page-wikilink-wrapper";
   wrapper.setAttribute("contenteditable", "false");
@@ -398,7 +385,6 @@ function handleFocusIn(e: FocusEvent): void {
   if (!target?.classList.contains("node-editor")) return;
 
   const nodeId = target.dataset.nodeId;
-  logDebug(`focusin: editor nodeId=${nodeId}, isPage=${isPage(nodeId ?? '')}, zoomedId=${store.getState().zoomedNodeId}`);
   if (!nodeId || !isPage(nodeId)) return;
 
   const zoomedId = store.getState().zoomedNodeId;
@@ -406,7 +392,6 @@ function handleFocusIn(e: FocusEvent): void {
     // Ignore reflexive focus that happens right after leaving a page
     if (Date.now() - lastZoomChangeTime < 400) return;
     // Not in page — blur and zoom in instead of editing
-    logDebug(`focusin: NOT in page, zooming in to page node "${nodeId}"`);
     focusForcingZoom = true;
     target.blur();
     focusForcingZoom = false;
@@ -431,14 +416,11 @@ function handleFocusOut(e: FocusEvent): void {
 let scanning = false;
 
 function scanAndTransform(): void {
-  if (scanning) {
-    logDebug("scanAndTransform: RE-ENTRY GUARD, skipping");
-    return;
-  }
+  if (scanning) return;
   scanning = true;
   try {
+
   const zoomedId = store.getState().zoomedNodeId;
-  logDebug(`scanAndTransform: zoomedId=${zoomedId}, pageIds.size=${pageIds.size}`);
 
   const nodes = document.querySelectorAll<HTMLElement>(
     ".outline-node[data-node-id]"
@@ -570,24 +552,6 @@ const plugin: RendererPlugin = {
         } else {
           showCopyToast("Full breadcrumb hierarchy restored");
         }
-      },
-    });
-
-    ctx.registerCommand({
-      id: "page-mode-dump-logs",
-      name: "Dump Page Debug Logs",
-      category: "Page",
-      keywords: ["page", "debug", "log", "dump", "txt"],
-      execute: () => {
-        const text = debugLogs.join("\n");
-        const blob = new Blob([text], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `page-mode-debug-${Date.now()}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showCopyToast(`Dumped ${debugLogs.length} log lines`);
       },
     });
 

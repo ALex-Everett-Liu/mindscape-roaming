@@ -21,3 +21,36 @@ git commit -m "first line`n`nsecond paragraph`n  - bullet"
 ```
 
 The agent must always present commit commands in this PowerShell-compatible format.
+
+## Debug Logging
+
+- The agent cannot read `console.log` output from the renderer's DevTools — every log line must be manually relayed by the user.
+- When debugging, always use a buffered logger that can be dumped to a downloadable `.txt` file:
+
+```typescript
+const debugLogs: string[] = [];
+function logDebug(msg: string): void {
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = `[${ts}] ${msg}`;
+  console.log(line);
+  debugLogs.push(line);
+}
+```
+
+- Register a "Dump Debug Logs" command so the agent can request a file download:
+
+```typescript
+ctx.registerCommand({
+  id: "plugin-dump-logs",
+  name: "Dump Debug Logs",
+  execute: () => {
+    const blob = new Blob([debugLogs.join("\n")], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `debug-${Date.now()}.txt`;
+    a.click();
+  },
+});
+```
+
+- Remove all debug logging and the dump command before committing the fix.
