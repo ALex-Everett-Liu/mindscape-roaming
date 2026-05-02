@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-05-03
+
+### Added
+
+- **Bookmarks plugin** (`core-bookmarks`, built-in, enabled by default): Pin outline nodes as bookmarks and access them from the right sidebar
+  - **bookmarks database table**: New SQLite table with `id, node_id UNIQUE, pinned_at, click_count`, foreign key reference to `outline_nodes`
+  - **Click count tracking**: Each bookmark tracks how many times it has been clicked, persisted in the database
+  - **Sidebar tab**: Bookmarked nodes appear in a "★ Bookmarks" tab in the shared sidebar with content preview, click count badge, and unpin button (hover-revealed)
+  - **Commands**: "Pin to Bookmarks" / "Unpin from Bookmarks" in the command palette — operates on the currently focused node
+  - **Auto-focus**: Pinning a node from the command palette automatically shows the Bookmarks sidebar tab
+
+- **Shared sidebar infrastructure** (`core-sidebar`, built-in, essential): A unified right sidebar that plugins register content tabs into
+  - **Tab system**: When 2+ tabs are registered, a tab bar appears at the top; with a single tab, the content is shown directly
+  - **Resize handle**: Drag the left edge to resize between 200-600px, persisted in `localStorage`
+  - **Content push**: Main content (`.outline-tree` and `.search-results`) shifts left with `margin-right` when the sidebar opens
+  - **Toggle**: Command palette "Toggle Sidebar" or plugin-specific toggle commands
+
+### Changed
+
+- **Links plugin refactored** to use the shared sidebar: The `third-party-links` plugin's self-contained sidebar (~275 lines of DOM, resize, toggle, and content-push logic) has been removed. Instead, it registers a "Links" tab on the core sidebar, sharing the same resize, toggle, and content-push infrastructure with the Bookmarks plugin
+
 ## [0.3.5] - 2026-05-02
 
 ### Added

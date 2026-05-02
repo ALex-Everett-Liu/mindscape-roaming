@@ -155,6 +155,17 @@ export class PluginManager {
         updateLink: (params: { id: string; category?: string; weight?: number }) =>
           wrap("updateLink", r.get("updateLink"))(params),
 
+        // Bookmarks (core-bookmarks plugin)
+        pinBookmark: (params: { nodeId: string }) =>
+          wrap("pinBookmark", r.get("pinBookmark"))(params),
+        unpinBookmark: (params: { nodeId: string }) =>
+          wrap("unpinBookmark", r.get("unpinBookmark"))(params),
+        getBookmarks: () => wrap("getBookmarks", r.get("getBookmarks"))(),
+        isBookmarked: (params: { nodeId: string }) =>
+          wrap("isBookmarked", r.get("isBookmarked"))(params),
+        incrementBookmarkClick: (params: { nodeId: string }) =>
+          wrap("incrementBookmarkClick", r.get("incrementBookmarkClick"))(params),
+
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),
         enablePlugin: (p: { pluginId: string }) =>

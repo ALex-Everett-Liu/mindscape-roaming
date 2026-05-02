@@ -102,6 +102,34 @@ export interface GetNodeLinksParams {
   node_id: string;
 }
 
+// ─── Bookmark Types ───────────────────────────────────
+export interface BookmarkRecord {
+  id: string;
+  node_id: string;
+  pinned_at: number;
+  click_count: number;
+}
+
+export interface BookmarkWithNode extends BookmarkRecord {
+  node_content: string;
+}
+
+export interface PinBookmarkParams {
+  nodeId: string;
+}
+
+export interface UnpinBookmarkParams {
+  nodeId: string;
+}
+
+export interface IsBookmarkedParams {
+  nodeId: string;
+}
+
+export interface IncrementBookmarkClickParams {
+  nodeId: string;
+}
+
 // ─── RPC Response Wrappers ───────────────────────────
 export interface RpcResult<T> {
   success: boolean;

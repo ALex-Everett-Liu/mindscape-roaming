@@ -8,6 +8,8 @@ import coreKeyboard from "../plugins/core-keyboard/index";
 import coreDragDrop from "../plugins/core-drag-drop/index";
 import coreCommandPalette from "../plugins/core-command-palette/index";
 import coreExport from "../plugins/core-export/index";
+import coreSidebar from "../plugins/core-sidebar/index";
+import coreBookmarks from "../plugins/core-bookmarks/index";
 import thirdPartyBlockRef from "../plugins/third-party-block-ref/index";
 import thirdPartyPageMode from "../plugins/third-party-page-mode/index";
 import thirdPartyLinks from "../plugins/third-party-links/index";
@@ -20,6 +22,8 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-drag-drop": coreDragDrop,
   "core-command-palette": coreCommandPalette,
   "core-export": coreExport,
+  "core-sidebar": coreSidebar,
+  "core-bookmarks": coreBookmarks,
   "third-party-block-ref": thirdPartyBlockRef,
   "third-party-page-mode": thirdPartyPageMode,
   "third-party-links": thirdPartyLinks,

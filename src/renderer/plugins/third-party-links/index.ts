@@ -5,9 +5,6 @@ import { manifest } from "./manifest";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
 
-const SIDEBAR_WIDTH_KEY = "mindscape_link_sidebar_width";
-const SIDEBAR_OPEN_KEY = "mindscape_link_sidebar_open";
-
 const CSS = `
 /* ─── Link badges ─── */
 .link-badge {
@@ -26,100 +23,6 @@ const CSS = `
   vertical-align: middle;
   user-select: none;
   flex-shrink: 0;
-}
-
-/* ─── Links sidebar ─── */
-:root {
-  --link-sidebar-width: 320px;
-}
-
-.links-sidebar {
-  position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--link-sidebar-width);
-  background: var(--bg-secondary, #16213e);
-  border-left: 1px solid var(--border, #333);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  font-size: 13px;
-  transform: translateX(100%);
-  transition: transform 0.2s ease;
-  box-shadow: -2px 0 12px rgba(0,0,0,0.2);
-}
-
-.links-sidebar.open {
-  transform: translateX(0);
-}
-
-.links-sidebar-resize-handle {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  cursor: col-resize;
-  z-index: 10;
-  background: transparent;
-  transition: background 0.15s;
-}
-
-.links-sidebar-resize-handle:hover,
-.links-sidebar.resizing .links-sidebar-resize-handle {
-  background: var(--accent, #4fc3f7);
-  opacity: 0.6;
-}
-
-.links-sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--bg, #1a1a2e);
-  border-bottom: 1px solid var(--border, #333);
-  flex-shrink: 0;
-}
-
-.links-sidebar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text, #e0e0e0);
-}
-
-.links-sidebar-count {
-  background: rgba(79, 195, 247, 0.2);
-  color: var(--accent, #4fc3f7);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
-}
-
-.links-sidebar-close {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--text-muted, #888);
-  cursor: pointer;
-  font-size: 18px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1;
-}
-
-.links-sidebar-close:hover {
-  color: var(--text, #e0e0e0);
-  background: var(--focus-bg, rgba(255,255,255,0.05));
-}
-
-.links-sidebar-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
 }
 
 .links-section-header {
@@ -222,12 +125,6 @@ const CSS = `
   color: #e57373;
 }
 
-/* ─── Content push when sidebar open ─── */
-.outline-tree.sidebar-active,
-.search-results.sidebar-active {
-  margin-right: var(--link-sidebar-width);
-  transition: margin-right 0.2s ease;
-}
 
 /* ─── Link creation / edit modal ─── */
 .link-modal-overlay {
@@ -478,15 +375,13 @@ const CSS = `
 `;
 
 let styleEl: HTMLStyleElement | null = null;
-let sidebar: HTMLDivElement | null = null;
 let observer: MutationObserver | null = null;
 let unsubStore: (() => void) | null = null;
-let sidebarOpen = false;
-let sidebarWidth = 320;
 let activeNodeId: string | null = null;
 let contextMenuEl: HTMLDivElement | null = null;
 let modalEl: HTMLDivElement | null = null;
-let sidebarLastHTML = "";
+let linksTabPanel: HTMLElement | null = null;
+let ctxRef: RendererPluginContext | null = null;
 
 function escapeHtml(text: string): string {
   const div = document.createElement("div");
@@ -506,30 +401,6 @@ function showCopyToast(message: string): void {
   }, 2000);
 }
 
-/* ─── Persistence ─── */
-
-function loadSidebarPrefs(): void {
-  try {
-    sidebarOpen = localStorage.getItem(SIDEBAR_OPEN_KEY) === "1";
-    const w = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-    if (w) {
-      const n = parseInt(w, 10);
-      if (n >= 200 && n <= 600) sidebarWidth = n;
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-function saveSidebarPrefs(): void {
-  try {
-    localStorage.setItem(SIDEBAR_OPEN_KEY, sidebarOpen ? "1" : "0");
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
-  } catch {
-    /* ignore */
-  }
-}
-
 /* ─── CSS ─── */
 
 function injectCSS(): void {
@@ -537,7 +408,6 @@ function injectCSS(): void {
   styleEl = document.createElement("style");
   styleEl.textContent = CSS;
   document.head.appendChild(styleEl);
-  document.documentElement.style.setProperty("--link-sidebar-width", `${sidebarWidth}px`);
 }
 
 function removeCSS(): void {
@@ -547,61 +417,30 @@ function removeCSS(): void {
   }
 }
 
-/* ─── Sidebar ─── */
+/* ─── Links tab ─── */
 
-function createSidebar(): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = "links-sidebar";
-  if (sidebarOpen) el.classList.add("open");
+async function refreshLinksTab(container: HTMLElement): Promise<void> {
+  const zoomedId = store.getState().zoomedNodeId;
+  if (!zoomedId) {
+    container.innerHTML = "";
+    return;
+  }
+  activeNodeId = zoomedId;
 
-  // Resize handle
-  const handle = document.createElement("div");
-  handle.className = "links-sidebar-resize-handle";
-  el.appendChild(handle);
+  const res = await api.getNodeLinks({ node_id: zoomedId });
+  if (!res.success) return;
 
-  let dragging = false;
-  let startX = 0;
-  let startWidth = 0;
-
-  handle.addEventListener("mousedown", (e) => {
-    dragging = true;
-    startX = e.clientX;
-    startWidth = sidebarWidth;
-    el.classList.add("resizing");
-    e.preventDefault();
-  });
-
-  document.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
-    const delta = startX - e.clientX;
-    const newWidth = Math.min(600, Math.max(200, startWidth + delta));
-    sidebarWidth = newWidth;
-    document.documentElement.style.setProperty("--link-sidebar-width", `${newWidth}px`);
-  });
-
-  document.addEventListener("mouseup", () => {
-    if (dragging) {
-      dragging = false;
-      el.classList.remove("resizing");
-      saveSidebarPrefs();
-    }
-  });
-
-  return el;
+  const links = res.data ?? [];
+  const html = buildSidebarContent(links);
+  container.innerHTML = html;
+  attachSidebarEvents(container);
 }
 
-function buildSidebarContent(links: LinkWithNode[], nodeId: string): string {
+function buildSidebarContent(links: LinkWithNode[]): string {
   const outgoing = links.filter((l) => l.direction === "outgoing");
   const incoming = links.filter((l) => l.direction === "incoming");
-  const total = links.length;
 
-  let html = `
-    <div class="links-sidebar-header">
-      <span class="links-sidebar-title">Links</span>
-      <span class="links-sidebar-count">${total}</span>
-      <button class="links-sidebar-close" title="Close sidebar">&times;</button>
-    </div>
-    <div class="links-sidebar-body">`;
+  let html = "";
 
   if (outgoing.length > 0) {
     html += `<div class="links-section-header">Outgoing (${outgoing.length})</div>`;
@@ -621,7 +460,6 @@ function buildSidebarContent(links: LinkWithNode[], nodeId: string): string {
     html += `<div class="links-empty">No links for this node.<br/>Right-click a bullet and choose "Create link" to add one.</div>`;
   }
 
-  html += `</div>`;
   return html;
 }
 
@@ -648,22 +486,10 @@ function buildLinkItemHTML(link: LinkWithNode, dir: string): string {
     </div>`;
 }
 
-function attachSidebarEvents(): void {
-  if (!sidebar) return;
-
-  // Close button
-  const closeBtn = sidebar.querySelector(".links-sidebar-close");
-  if (closeBtn) {
-    closeBtn.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      toggleSidebar(false);
-    });
-  }
-
+function attachSidebarEvents(container: HTMLElement): void {
   // Link item clicks (navigate)
-  sidebar.querySelectorAll(".link-item").forEach((item) => {
+  container.querySelectorAll(".link-item").forEach((item) => {
     item.addEventListener("mousedown", (e) => {
-      // Don't navigate if clicking delete or edit buttons
       const target = e.target as HTMLElement;
       if (target.closest(".link-item-delete") || target.closest(".link-item-edit")) return;
 
@@ -676,7 +502,7 @@ function attachSidebarEvents(): void {
   });
 
   // Delete buttons
-  sidebar.querySelectorAll(".link-item-delete").forEach((btn) => {
+  container.querySelectorAll(".link-item-delete").forEach((btn) => {
     btn.addEventListener("mousedown", async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -688,7 +514,7 @@ function attachSidebarEvents(): void {
       const res = await api.deleteLink(linkId);
       if (res.success) {
         showCopyToast("Link deleted");
-        void refreshSidebar();
+        if (linksTabPanel) void refreshLinksTab(linksTabPanel);
       } else {
         showCopyToast("Failed to delete link");
       }
@@ -696,7 +522,7 @@ function attachSidebarEvents(): void {
   });
 
   // Edit buttons
-  sidebar.querySelectorAll(".link-item-edit").forEach((btn) => {
+  container.querySelectorAll(".link-item-edit").forEach((btn) => {
     btn.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -707,111 +533,6 @@ function attachSidebarEvents(): void {
       void openEditModal(linkId);
     });
   });
-}
-
-async function refreshSidebar(): Promise<void> {
-  if (!sidebar || !sidebarOpen) return;
-  const zoomedId = store.getState().zoomedNodeId;
-  if (!zoomedId) {
-    sidebar.style.display = "none";
-    return;
-  }
-  sidebar.style.display = "flex";
-  activeNodeId = zoomedId;
-
-  const res = await api.getNodeLinks({ node_id: zoomedId });
-  if (!res.success) return;
-
-  const links = res.data ?? [];
-  const html = buildSidebarContent(links, zoomedId);
-
-  if (html === sidebarLastHTML) return;
-  sidebarLastHTML = html;
-  sidebar.innerHTML = "";
-  // Re-add resize handle
-  const handle = document.createElement("div");
-  handle.className = "links-sidebar-resize-handle";
-  sidebar.appendChild(handle);
-  // Re-add resize logic
-  const s = sidebar;
-  let dragging = false;
-  let startX = 0;
-  let startWidth = 0;
-
-  handle.addEventListener("mousedown", (e) => {
-    dragging = true;
-    startX = e.clientX;
-    startWidth = sidebarWidth;
-    s.classList.add("resizing");
-    e.preventDefault();
-  });
-
-  const onMove = (e: MouseEvent) => {
-    if (!dragging) return;
-    const delta = startX - e.clientX;
-    sidebarWidth = Math.min(600, Math.max(200, startWidth + delta));
-    document.documentElement.style.setProperty("--link-sidebar-width", `${sidebarWidth}px`);
-  };
-  const onUp = () => {
-    if (dragging) {
-      dragging = false;
-      s.classList.remove("resizing");
-      saveSidebarPrefs();
-    }
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-  };
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-
-  // Add inner HTML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  const bodyChildren = doc.body.childNodes;
-  while (bodyChildren.length > 0) {
-    sidebar.appendChild(bodyChildren[0]);
-  }
-
-  attachSidebarEvents();
-}
-
-function toggleSidebar(open?: boolean): void {
-  if (typeof open !== "boolean") open = !sidebarOpen;
-  sidebarOpen = open;
-  saveSidebarPrefs();
-
-  if (!sidebar) return;
-
-  if (sidebarOpen) {
-    sidebar.classList.add("open");
-    applyContentPush(true);
-    updateSidebarTop();
-    void refreshSidebar();
-  } else {
-    sidebar.classList.remove("open");
-    applyContentPush(false);
-  }
-  sidebar.style.display = sidebarOpen ? "flex" : "none";
-}
-
-function applyContentPush(push: boolean): void {
-  const tree = document.querySelector(".outline-tree");
-  const search = document.querySelector(".search-results");
-  if (push) {
-    tree?.classList.add("sidebar-active");
-    search?.classList.add("sidebar-active");
-  } else {
-    tree?.classList.remove("sidebar-active");
-    search?.classList.remove("sidebar-active");
-  }
-}
-
-function updateSidebarTop(): void {
-  if (!sidebar) return;
-  const toolbar = document.querySelector<HTMLElement>(".toolbar");
-  const breadcrumb = document.querySelector<HTMLElement>(".breadcrumb-container");
-  const top = (toolbar?.offsetHeight || 0) + ((breadcrumb?.offsetHeight || 0) + 1);
-  sidebar.style.top = `${top}px`;
 }
 
 /* ─── Link creation / edit modal ─── */
@@ -969,7 +690,7 @@ async function openCreateModal(sourceId: string): Promise<void> {
       destroyModal();
       showCopyToast("Link created");
       void refreshLinkCounts();
-      void refreshSidebar();
+      if (linksTabPanel) void refreshLinksTab(linksTabPanel);
     } else {
       const errDiv = document.createElement("div");
       errDiv.className = "link-modal-error";
@@ -1064,7 +785,7 @@ async function openEditModal(linkId: string): Promise<void> {
     if (res.success) {
       destroyModal();
       showCopyToast("Link updated");
-      void refreshSidebar();
+      if (linksTabPanel) void refreshLinksTab(linksTabPanel);
     } else {
       const errDiv = document.createElement("div");
       errDiv.className = "link-modal-error";
@@ -1324,7 +1045,7 @@ async function openCreateModalWithTarget(targetId: string): Promise<void> {
       destroyModal();
       showCopyToast("Link created");
       void refreshLinkCounts();
-      void refreshSidebar();
+      if (linksTabPanel) void refreshLinksTab(linksTabPanel);
     } else {
       const errDiv = document.createElement("div");
       errDiv.className = "link-modal-error";
@@ -1397,19 +1118,24 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
-    loadSidebarPrefs();
+    ctxRef = ctx;
     injectCSS();
 
-    // Create sidebar
-    sidebar = createSidebar();
-    document.body.appendChild(sidebar);
-    updateSidebarTop();
+    // Create tab panel and register on core sidebar
+    linksTabPanel = document.createElement("div");
+    linksTabPanel.className = "sidebar-tab-panel links-tab";
+    linksTabPanel.style.overflowY = "auto";
+    linksTabPanel.style.padding = "8px 0";
 
-    if (sidebarOpen) {
-      sidebar.classList.add("open");
-      applyContentPush(true);
-      void refreshSidebar();
-    }
+    await ctx.emit("sidebar:register-tab", {
+      pluginId: "third-party-links",
+      tabId: "links",
+      label: "Links",
+      panel: linksTabPanel,
+    });
+
+    // Initial render
+    void refreshLinksTab(linksTabPanel);
 
     // Observe DOM for content area changes (search toggle, etc.)
     observer = new MutationObserver((mutations) => {
@@ -1417,8 +1143,6 @@ const plugin: RendererPlugin = {
         (m) => m.type === "childList" && m.addedNodes.length > 0
       );
       if (hasNewNodes) {
-        updateSidebarTop();
-        applyContentPush(sidebarOpen);
         requestAnimationFrame(() => annotateLinkBadges());
       }
     });
@@ -1444,12 +1168,9 @@ const plugin: RendererPlugin = {
 
     // Store subscription
     unsubStore = store.subscribe((state) => {
-      updateSidebarTop();
       if (state.zoomedNodeId !== activeNodeId) {
         activeNodeId = state.zoomedNodeId;
-        if (sidebarOpen) {
-          void refreshSidebar();
-        }
+        if (linksTabPanel) void refreshLinksTab(linksTabPanel);
       }
       requestAnimationFrame(() => annotateLinkBadges());
     });
@@ -1480,7 +1201,10 @@ const plugin: RendererPlugin = {
       category: "Links",
       keywords: ["link", "sidebar", "toggle", "panel"],
       execute: () => {
-        toggleSidebar();
+        void ctx.emit("sidebar:toggle");
+        if (linksTabPanel) {
+          void ctx.emit("sidebar:show-tab", { tabId: "links" });
+        }
       },
     });
 
@@ -1488,6 +1212,10 @@ const plugin: RendererPlugin = {
   },
 
   async onUnload() {
+    await ctxRef?.emit("sidebar:unregister-tab", {
+      pluginId: "third-party-links",
+      tabId: "links",
+    });
     removeCSS();
     removeAllLinkBadges();
     destroyContextMenu();
@@ -1503,12 +1231,9 @@ const plugin: RendererPlugin = {
       unsubStore = null;
     }
 
-    applyContentPush(false);
-
-    if (sidebar) {
-      sidebar.remove();
-      sidebar = null;
-    }
+    linksTabPanel?.remove();
+    linksTabPanel = null;
+    ctxRef = null;
   },
 };
 

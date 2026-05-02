@@ -17,6 +17,12 @@ import type {
   CreateLinkParams,
   UpdateLinkParams,
   GetNodeLinksParams,
+  BookmarkRecord,
+  BookmarkWithNode,
+  PinBookmarkParams,
+  UnpinBookmarkParams,
+  IsBookmarkedParams,
+  IncrementBookmarkClickParams,
 } from "../../shared/types";
 
 type OutlinerRpcRequest = {
@@ -48,6 +54,11 @@ type OutlinerRpcRequest = {
   getLinkCounts: (params?: Record<string, never>) => Promise<RpcResult<Record<string, { total: number; outgoing: number; incoming: number }>>>;
   deleteLink: (params: { id: string }) => Promise<RpcResult<void>>;
   updateLink: (params: UpdateLinkParams) => Promise<RpcResult<LinkRecord>>;
+  pinBookmark: (params: PinBookmarkParams) => Promise<RpcResult<BookmarkRecord>>;
+  unpinBookmark: (params: UnpinBookmarkParams) => Promise<RpcResult<boolean>>;
+  getBookmarks: (params?: Record<string, never>) => Promise<RpcResult<BookmarkWithNode[]>>;
+  isBookmarked: (params: IsBookmarkedParams) => Promise<RpcResult<boolean>>;
+  incrementBookmarkClick: (params: IncrementBookmarkClickParams) => Promise<RpcResult<void>>;
 };
 
 let rpcRequest: OutlinerRpcRequest | null = null;
@@ -93,4 +104,9 @@ export const api = {
   getLinkCounts: () => getRpc().getLinkCounts({}),
   deleteLink: (id: string) => getRpc().deleteLink({ id }),
   updateLink: (params: UpdateLinkParams) => getRpc().updateLink(params),
+  pinBookmark: (params: PinBookmarkParams) => getRpc().pinBookmark(params),
+  unpinBookmark: (params: UnpinBookmarkParams) => getRpc().unpinBookmark(params),
+  getBookmarks: () => getRpc().getBookmarks({}),
+  isBookmarked: (params: IsBookmarkedParams) => getRpc().isBookmarked(params),
+  incrementBookmarkClick: (params: IncrementBookmarkClickParams) => getRpc().incrementBookmarkClick(params),
 };
