@@ -148,13 +148,13 @@ const plugin: RendererPlugin = {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--text-primary, #ddd);
+        color: var(--text, #e0e0e0);
         font-size: 13px;
       }
 
       .bookmark-click-count {
         flex-shrink: 0;
-        background: var(--bg-primary, #0f1a2e);
+        background: var(--bg, #1a1a2e);
         color: var(--text-muted, #888);
         font-size: 10px;
         padding: 1px 6px;
@@ -199,7 +199,7 @@ const plugin: RendererPlugin = {
       }
 
       .bookmarks-empty kbd {
-        background: var(--bg-primary, #0f1a2e);
+        background: var(--bg, #1a1a2e);
         padding: 1px 6px;
         border-radius: 4px;
         border: 1px solid var(--border, #333);

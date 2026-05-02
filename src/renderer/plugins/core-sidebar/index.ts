@@ -229,7 +229,7 @@ const plugin: RendererPlugin = {
         display: flex;
         flex-shrink: 0;
         border-bottom: 1px solid var(--border, #333);
-        background: var(--bg-primary, #0f1a2e);
+        background: var(--bg, #1a1a2e);
         overflow-x: auto;
       }
 
@@ -248,7 +248,7 @@ const plugin: RendererPlugin = {
       }
 
       .sidebar-tab-btn:hover {
-        color: var(--text-primary, #ddd);
+        color: var(--text, #e0e0e0);
       }
 
       .sidebar-tab-btn.active {
@@ -292,7 +292,7 @@ const plugin: RendererPlugin = {
       .sidebar-title {
         font-weight: 600;
         font-size: 13px;
-        color: var(--text-primary, #ddd);
+        color: var(--text, #e0e0e0);
       }
 
       .sidebar-close {
@@ -307,8 +307,8 @@ const plugin: RendererPlugin = {
       }
 
       .sidebar-close:hover {
-        color: var(--text-primary, #ddd);
-        background: var(--bg-primary, #0f1a2e);
+        color: var(--text, #e0e0e0);
+        background: var(--bg, #1a1a2e);
       }
 
       .outline-tree.sidebar-active,

@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Links plugin refactored** to use the shared sidebar: The `third-party-links` plugin's self-contained sidebar (~275 lines of DOM, resize, toggle, and content-push logic) has been removed. Instead, it registers a "Links" tab on the core sidebar, sharing the same resize, toggle, and content-push infrastructure with the Bookmarks plugin
 
+### Fixed
+
+- **Sidebar/bookmarks theme support**: Replaced nonexistent CSS variables (`--bg-primary`, `--text-primary`) with the project's standard `--bg` / `--text` across the core-sidebar and core-bookmarks plugins. These variables didn't exist in any theme definition, causing the sidebar to always render with hardcoded dark-theme fallback colors regardless of the active theme (Organic, Light, etc.)
+
 ## [0.3.5] - 2026-05-02
 
 ### Added

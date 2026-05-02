@@ -85,6 +85,39 @@ Phase 4 (optional)
 
 ---
 
+## Initiative 3: Design Token Naming Standardization
+
+*Low priority — cosmetic improvement.*
+
+### Current State
+
+CSS variables use **omitted-primary** convention across 5 themes (`native`, `light`, `organic`, `ocean`, `forest`) and all plugins:
+
+| Variable | Role | Standard equivalent |
+|---|---|---|
+| `--text` | Primary text | `--text-primary` |
+| `--text-muted` | Secondary text | `--text-secondary` |
+| `--bg` | Primary background | `--bg-primary` |
+| `--bg-secondary` | Secondary background | `--bg-secondary` |
+
+### Problem
+
+- `--text` / `--bg` meaning "primary" is implicit — confusing for contributors familiar with design systems that use explicit tier suffixes (Material Design, Primer, Radix)
+- Earlier sidebar/bookmark code incorrectly used `--text-primary` / `--bg-primary` (nonexistent in any theme), falling back to hardcoded dark colors on non-dark themes
+- Fixed in v0.3.6 by switching to existing `--text` / `--bg`, but the underlying naming inconsistency remains
+
+### Proposed
+
+1. Rename variables across all 5 theme definitions (`themeManager.ts`) and all CSS references (`main.css` + plugin-injected CSS)
+2. Old names as fallback aliases (e.g. `var(--text-primary, var(--text))`) during transition
+3. Remove old names after one release cycle
+
+### Effort
+
+~20 files, mostly search-replace. Low risk, can be done opportunistically.
+
+---
+
 ## References
 
 - [feature-backlog.md](feature-backlog.md) — Implementation specs for all initiatives
