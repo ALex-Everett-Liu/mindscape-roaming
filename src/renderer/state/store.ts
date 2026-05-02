@@ -222,6 +222,19 @@ class Store {
     });
   }
 
+  togglePage(id: string): void {
+    const node = this.findNodeInTree(id);
+    if (!node) return;
+    const newPage = !node.is_page;
+
+    this.updateNodeInTree(id, { is_page: newPage });
+    this.markModified(id);
+
+    api.updateNode({ id, is_page: newPage }).then((result) => {
+      if (!result.success) console.error("togglePage failed:", result.error);
+    });
+  }
+
   async indentNode(id: string): Promise<void> {
     const result = await api.indentNode({ id });
     if (result.success && result.data) {

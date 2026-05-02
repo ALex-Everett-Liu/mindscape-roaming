@@ -3,7 +3,6 @@ import type { RendererPluginContext } from "../../plugin-system/RendererPluginCo
 import type { OutlineNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
-import { api } from "../../rpc/api";
 
 const BREADCRUMB_TRUNCATE_KEY = "mindscape_page_breadcrumb_truncate";
 
@@ -153,21 +152,6 @@ function syncPageCacheFromStore(): void {
 
 function isPage(id: string): boolean {
   return pageIds.has(id);
-}
-
-async function togglePageAsync(id: string): Promise<boolean> {
-  const became = !pageIds.has(id);
-  logDebug(`togglePageAsync: id=${id}, became=${became}`);
-  try {
-    store.markModified(id);
-    await api.updateNode({ id, is_page: became });
-    // Optimistic: update cache, then refresh from tree on next load
-    if (became) pageIds.add(id);
-    else pageIds.delete(id);
-    return became;
-  } catch {
-    return !became;
-  }
 }
 
 /* ─── Breadcrumb truncation ─── */
@@ -407,6 +391,7 @@ function unwrapPageContent(editor: HTMLElement): void {
 /* ─── Focus handlers ─── */
 
 let focusForcingZoom = false;
+let lastZoomChangeTime = 0;
 
 function handleFocusIn(e: FocusEvent): void {
   const target = e.target as HTMLElement | null;
@@ -418,6 +403,8 @@ function handleFocusIn(e: FocusEvent): void {
 
   const zoomedId = store.getState().zoomedNodeId;
   if (zoomedId !== nodeId) {
+    // Ignore reflexive focus that happens right after leaving a page
+    if (Date.now() - lastZoomChangeTime < 400) return;
     // Not in page — blur and zoom in instead of editing
     logDebug(`focusin: NOT in page, zooming in to page node "${nodeId}"`);
     focusForcingZoom = true;
@@ -514,6 +501,7 @@ const plugin: RendererPlugin = {
       syncPageCacheFromStore();
       if (state.zoomedNodeId !== lastZoomedId) {
         lastZoomedId = state.zoomedNodeId;
+        lastZoomChangeTime = Date.now();
         requestAnimationFrame(() => { scanAndTransform(); applyBreadcrumbTruncation(); updateAncestorPanel(); });
       }
     });
@@ -528,12 +516,13 @@ const plugin: RendererPlugin = {
       name: "Toggle Page Mode",
       category: "Page",
       keywords: ["page", "wikilink", "toggle"],
-      execute: async () => {
+      execute: () => {
         const state = store.getState();
         const focusedId = state.focusedNodeId;
         if (!focusedId) return;
 
-        const became = await togglePageAsync(focusedId);
+        const became = !isPage(focusedId);
+        store.togglePage(focusedId);
         requestAnimationFrame(() => scanAndTransform());
 
         if (became) {
