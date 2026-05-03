@@ -11,6 +11,7 @@ import coreExport from "../plugins/core-export/index";
 import coreSidebar from "../plugins/core-sidebar/index";
 import coreBookmarks from "../plugins/core-bookmarks/index";
 import coreContextMenu from "../plugins/core-context-menu/index";
+import coreWorkspace from "../plugins/core-workspace/index";
 import thirdPartyBlockRef from "../plugins/third-party-block-ref/index";
 import thirdPartyPageMode from "../plugins/third-party-page-mode/index";
 import thirdPartyLinks from "../plugins/third-party-links/index";
@@ -26,6 +27,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-sidebar": coreSidebar,
   "core-bookmarks": coreBookmarks,
   "core-context-menu": coreContextMenu,
+  "core-workspace": coreWorkspace,
   "third-party-block-ref": thirdPartyBlockRef,
   "third-party-page-mode": thirdPartyPageMode,
   "third-party-links": thirdPartyLinks,

@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Plugin registration API**: Plugins emit `context-menu:register` / `context-menu:unregister` with `{ id, pluginId, label, dividerBefore?, execute(nodeId) }`
   - **Clean separation**: Each plugin owns its own items — no HTML injection into another plugin's menu
 
+- **Workspace plugin** (`core-workspace`, built-in, enabled by default): Temporary pin workspace for quick-access nodes — purely in-memory, no persistence across app restarts
+  - **Zero persistence**: Pinned node IDs stored in a `Set<string>` — cleared on app restart, no database table, no RPC handlers
+  - **Sidebar tab**: "Workspace" tab in the shared sidebar with content preview and × unpin button
+  - **Context menu**: Right-click → "★ Pin to Workspace" / "✕ Unpin from Workspace"
+  - **Commands**: "Pin to Workspace" / "Unpin from Workspace" in the command palette
+
 ### Changed
 
 - **Context menu refactored across all plugins**: Right-click context menu items (link creation, bookmark pin/unpin, copy block reference) are now registered by their respective plugins through the centralized `core-context-menu` plugin instead of being hardcoded in component JSX or scattered across plugin HTML
