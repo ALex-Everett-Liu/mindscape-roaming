@@ -24,10 +24,11 @@
 
 ### After implementing code:
 
-1. **Stop.** Do not commit. Do not tag. Do not update CHANGELOG.
-2. Show the diff.
-3. Say: *"Changes are ready. Review and test them. Let me know when to commit and what version/tag to use."*
-4. Wait for the user's explicit commit instruction.
+1. **Stop.** Do not commit. Do not tag. Do not create a numbered `[X.Y.Z]` CHANGELOG header.
+2. **Always** append relevant bullet points to the `[Unreleased]` section of CHANGELOG.md (see Changelog Hygiene below).
+3. Show the diff.
+4. Say: *"Changes are ready. Review and test them. Let me know when to commit and what version/tag to use."*
+5. Wait for the user's explicit commit instruction.
 
 ### When the user DOES ask to commit:
 
@@ -43,6 +44,24 @@
 - Adding a new `## [X.Y.Z] - DATE` header to CHANGELOG.md requires the user to specify the version number.
 - Moving a git tag (`git tag -f`) requires the user to explicitly say "move the tag."
 - Do not assume a bug-fix or feature warrants a version bump.
+
+## Changelog Hygiene
+
+After completing **any** task — new features, bug fixes, refactoring, documentation, performance improvements, etc. — the agent MUST append relevant bullet points to the `[Unreleased]` section of `CHANGELOG.md`. The user reviews these and decides when to move them into a numbered `[X.Y.Z]` release section.
+
+### What to record:
+- New features with plugin name, category, and one-line summary
+- Bug fixes with the symptom and root cause
+- Behavioral changes or deprecations
+- Build/tooling changes that affect the developer workflow
+
+### What NOT to record:
+- Pure formatting / whitespace changes
+- Internal refactors with no user-facing or developer-facing impact
+- Temporary debug logging commits (the debug code is removed before commit anyway)
+
+### Format:
+Use the existing `[Unreleased]` structure — nest under `### Added`, `### Changed`, `### Fixed`, `### Removed` subsections as appropriate. Match the writing style of existing entries (bold plugin/module name, concise description, sub-bullets with `**key**: detail` for complex items).
 
 ## Data Integrity — File Safety
 
