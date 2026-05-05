@@ -1,5 +1,6 @@
 import type { RendererPlugin } from "../../../shared/plugin-types";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
+import type { OutlineTreeNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
@@ -228,16 +229,23 @@ async function gatherImages(nodeId: string): Promise<GalleryImage[]> {
     }
   }
 
-  const ancRes = await api.getAncestors(nodeId);
-  if (ancRes.success && ancRes.data) {
-    for (const anc of ancRes.data) {
-      addFromContent(anc.content, anc.id);
+  function walkSubtree(nodes: OutlineTreeNode[]): void {
+    for (const node of nodes) {
+      addFromContent(node.content, node.id);
+      if (node.children?.length) {
+        walkSubtree(node.children);
+      }
     }
   }
 
   const nodeRes = await api.getNode(nodeId);
   if (nodeRes.success && nodeRes.data) {
     addFromContent(nodeRes.data.content, nodeId);
+  }
+
+  const subtreeRes = await api.getSubtree({ parent_id: nodeId });
+  if (subtreeRes.success && subtreeRes.data) {
+    walkSubtree(subtreeRes.data);
   }
 
   return images;
@@ -347,7 +355,7 @@ async function openGallery(images: GalleryImage[], startIndex: number): Promise<
 
     const msg = document.createElement("div");
     msg.className = "image-gallery-empty";
-    msg.textContent = "No images found in this node or its ancestors.";
+    msg.textContent = "No images found in this node or its descendants.";
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "image-gallery-close";

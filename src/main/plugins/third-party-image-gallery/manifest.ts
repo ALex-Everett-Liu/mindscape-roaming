@@ -5,7 +5,7 @@ export const manifest: PluginManifest = {
   name: "Image Gallery",
   version: "1.0.0",
   description:
-    "Browse all images in a node and its ancestors with left/right arrow key navigation and fullscreen zoom.",
+    "Browse all images under a node (itself + descendants) with left/right arrow key navigation and fullscreen zoom.",
   author: "Community",
   type: "community",
   runtime: "main",
