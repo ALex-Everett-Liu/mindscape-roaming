@@ -2,6 +2,14 @@
 
 Future plans for `third-party-vim-nav`.
 
+## Current Status (v1.0.0)
+
+- **Edit Mode** (Alt+V): Hint labels on breadcrumbs, ancestor panels, and outline nodes — typing a hint jumps and starts editing
+- **Focus Mode** (Alt+Shift+V): Same hint system, but only highlights/focuses the target node without entering edit mode
+- **Three target types**: Breadcrumbs (cyan hints), ancestor panels (green hints), and outline nodes (yellow hints)
+- Status bar with mode indicator, buffer display, matching count, and Enter-to-confirm prompt
+- Home-row hint keys: `a`, `s`, `d`, `f`, `g`, `h`, `j`, `k`, `l`, `;`
+
 ## Normal Mode (planned)
 
 - `j` / `k` — move focus down / up one node (Vim-style vertical navigation)

@@ -5,7 +5,7 @@ import { store } from "../../state/store";
 
 const HINT_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"] as const;
 
-type HintType = "node" | "crumb";
+type HintType = "node" | "crumb" | "panel";
 
 interface HintEntry {
   el: HTMLElement;
@@ -23,6 +23,7 @@ interface CrumbTarget {
 let ctxRef: RendererPluginContext | null = null;
 let styleEl: HTMLStyleElement | null = null;
 let navMode = false;
+let navModeType: "edit" | "focus" = "edit";
 let hintMap = new Map<string, HintEntry>();
 let keyBuffer = "";
 let statusBar: HTMLElement | null = null;
@@ -58,6 +59,11 @@ const CSS = `
   background: #89b4fa;
   border: 1px solid #74a8e8;
 }
+.vim-hint.panel {
+  color: #1a1a1a;
+  background: #a6e3a1;
+  border: 1px solid #89d48e;
+}
 .vim-hint.selected {
   box-shadow: 0 0 0 2px #a6e3a1;
   transform: scale(1.1);
@@ -85,6 +91,11 @@ const CSS = `
 .vim-nav-status .vim-nav-buffer {
   color: #89b4fa;
   font-weight: 700;
+}
+.vim-nav-status .vim-nav-mode {
+  color: #f9e2af;
+  font-weight: 700;
+  min-width: 90px;
 }
 .vim-nav-status .vim-nav-cursor {
   display: inline-block;
@@ -170,6 +181,25 @@ function getCrumbElements(): CrumbTarget[] {
   return results;
 }
 
+function getPanelElements(): CrumbTarget[] {
+  const results: CrumbTarget[] = [];
+
+  const items = document.querySelectorAll<HTMLElement>(
+    ".page-ancestor-item"
+  );
+  for (const el of items) {
+    const action = el.dataset.action;
+    const nodeId = el.dataset.nodeId;
+    if (action === "zoom-root" && !nodeId) {
+      results.push({ el, nodeId: "__zoom_root__", isHome: true });
+    } else if (nodeId) {
+      results.push({ el, nodeId, isHome: false });
+    }
+  }
+
+  return results;
+}
+
 function getNodeElements(): HTMLElement[] {
   const all = document.querySelectorAll<HTMLElement>(
     ".outline-node[data-node-id]"
@@ -184,7 +214,8 @@ function getNodeElements(): HTMLElement[] {
 
 function injectHint(el: HTMLElement, label: string, type: HintType): HTMLElement {
   const hintEl = document.createElement("span");
-  hintEl.className = `vim-hint ${type === "crumb" ? "crumb" : ""}`;
+  const typeClass = type === "node" ? "" : type;
+  hintEl.className = `vim-hint ${typeClass}`.trim();
   hintEl.textContent = label;
   hintEl.dataset.vimHint = label;
 
@@ -204,9 +235,10 @@ function injectHint(el: HTMLElement, label: string, type: HintType): HTMLElement
 
 function assignHints(
   crumbs: CrumbTarget[],
+  panels: CrumbTarget[],
   nodes: HTMLElement[]
 ): Map<string, HintEntry> {
-  const total = crumbs.length + nodes.length;
+  const total = crumbs.length + panels.length + nodes.length;
   const labels = generateHintLabels(total);
   const map = new Map<string, HintEntry>();
   hintElements = [];
@@ -223,6 +255,19 @@ function assignHints(
     };
     map.set(label, entry);
     const hintEl = injectHint(crumb.el, label, "crumb");
+    hintElements.push(hintEl);
+  }
+
+  for (const panel of panels) {
+    const label = labels[i++];
+    const entry: HintEntry = {
+      el: panel.el,
+      label,
+      nodeId: panel.nodeId,
+      type: "panel",
+    };
+    map.set(label, entry);
+    const hintEl = injectHint(panel.el, label, "panel");
     hintElements.push(hintEl);
   }
 
@@ -250,7 +295,7 @@ function showStatusBar(): void {
   statusBar = document.createElement("div");
   statusBar.className = "vim-nav-status";
   statusBar.innerHTML = `
-    <span>Vim Nav</span>
+    <span class="vim-nav-mode"></span>
     <span class="vim-nav-buffer"><span class="vim-nav-text"></span><span class="vim-nav-cursor"></span></span>
     <span class="vim-nav-count"></span>
     <span class="vim-nav-confirm"></span>
@@ -320,12 +365,14 @@ function updateStatusBar(): void {
   if (!statusBar) return;
   statusBar.style.display = "";
 
+  const modeEl = statusBar.querySelector(".vim-nav-mode");
   const textEl = statusBar.querySelector(".vim-nav-text");
   const cursorEl = statusBar.querySelector(".vim-nav-cursor");
   const countEl = statusBar.querySelector(".vim-nav-count");
   const confirmEl = statusBar.querySelector(".vim-nav-confirm") as HTMLElement | null;
   const hintEl = statusBar.querySelector(".vim-nav-hint") as HTMLElement | null;
 
+  if (modeEl) modeEl.textContent = navModeType === "edit" ? "Edit" : "Focus";
   if (textEl) textEl.textContent = keyBuffer;
   if (cursorEl) (cursorEl as HTMLElement).style.display = "";
   if (countEl) countEl.textContent = `(${hintMap.size} hints)`;
@@ -341,7 +388,7 @@ function updateStatusBar(): void {
   const needsEnter = exactMatch && hasLongerHintsFor(keyBuffer);
 
   if (needsEnter && confirmEl) {
-    const typeLabel = exactMatch.type === "crumb" ? "breadcrumb" : "node";
+    const typeLabel = exactMatch.type === "crumb" ? "breadcrumb" : exactMatch.type === "panel" ? "ancestor" : "node";
     confirmEl.textContent = `[Enter to jump to ${typeLabel}]`;
   } else if (confirmEl) {
     confirmEl.textContent = "";
@@ -381,8 +428,8 @@ function showError(msg: string): void {
 function jumpTo(entry: HintEntry): void {
   entry.el.scrollIntoView({ block: "center", behavior: "smooth" });
 
-  if (entry.type === "crumb") {
-    if (entry.nodeId === "__home__") {
+  if (entry.type === "crumb" || entry.type === "panel") {
+    if (entry.nodeId === "__home__" || entry.nodeId === "__zoom_root__") {
       store.zoomToRoot();
     } else {
       store.zoomIn(entry.nodeId);
@@ -390,17 +437,17 @@ function jumpTo(entry: HintEntry): void {
     return;
   }
 
-  // Node: focus and edit
-  requestAnimationFrame(() => {
-    store.setFocusedNode(entry.nodeId);
+  // Node: focus (both modes), edit only in "edit" mode
+  store.setFocusedNode(entry.nodeId);
 
+  if (navModeType === "edit") {
     requestAnimationFrame(() => {
       const editor = entry.el.querySelector<HTMLElement>(".node-editor");
       if (editor) {
         editor.focus();
       }
     });
-  });
+  }
 }
 
 function handleHintKey(e: KeyboardEvent): void {
@@ -462,19 +509,21 @@ function handleHintKey(e: KeyboardEvent): void {
   }
 }
 
-function enterNavMode(): void {
+function enterNavMode(mode: "edit" | "focus"): void {
   if (navMode) return;
   navMode = true;
+  navModeType = mode;
 
   const crumbs = getCrumbElements();
+  const panels = getPanelElements();
   const nodes = getNodeElements();
 
-  if (crumbs.length === 0 && nodes.length === 0) {
+  if (crumbs.length === 0 && panels.length === 0 && nodes.length === 0) {
     navMode = false;
     return;
   }
 
-  hintMap = assignHints(crumbs, nodes);
+  hintMap = assignHints(crumbs, panels, nodes);
   showStatusBar();
   updateStatusBar();
 
@@ -492,7 +541,7 @@ function enterNavMode(): void {
     }
 
     if (e.altKey || e.ctrlKey || e.metaKey) {
-      if (e.altKey && e.key === "v") {
+      if (e.altKey && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         e.stopImmediatePropagation();
         exitNavMode();
@@ -522,11 +571,11 @@ function exitNavMode(): void {
   keyBuffer = "";
 }
 
-function toggleNavMode(): void {
+function toggleNavMode(mode: "edit" | "focus"): void {
   if (navMode) {
     exitNavMode();
   } else {
-    enterNavMode();
+    enterNavMode(mode);
   }
 }
 
@@ -540,12 +589,21 @@ const plugin: RendererPlugin = {
     hideStatusBar();
 
     ctx.registerCommand({
-      id: "toggle-vim-nav",
-      name: "Toggle Vim Navigation",
+      id: "toggle-vim-nav-edit",
+      name: "Vim Nav: Edit Mode",
       shortcut: "Alt+V",
       category: "Navigation",
-      keywords: ["vim", "hint", "jump", "navigate", "keyboard"],
-      execute: toggleNavMode,
+      keywords: ["vim", "hint", "jump", "navigate", "keyboard", "edit"],
+      execute: () => toggleNavMode("edit"),
+    });
+
+    ctx.registerCommand({
+      id: "toggle-vim-nav-focus",
+      name: "Vim Nav: Focus Mode",
+      shortcut: "Alt+Shift+V",
+      category: "Navigation",
+      keywords: ["vim", "hint", "jump", "navigate", "keyboard", "focus"],
+      execute: () => toggleNavMode("focus"),
     });
   },
 
