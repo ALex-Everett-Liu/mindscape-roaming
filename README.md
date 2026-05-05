@@ -42,9 +42,91 @@ bun run build
   - `Tab` / `Shift+Tab` — Indent / Outdent
   - `Backspace` (on empty) — Delete node
   - `Alt+↑` / `Alt+↓` — Move node up/down
+- **Vim-style keyboard navigation** — Jump to any node without the mouse. [User Guide →](docs/vim-nav-user-guide.md)
 - **Drag & drop** — Reorder and nest nodes
 - **SQLite storage** — Data saved in stable app data dir (e.g. `%LOCALAPPDATA%\sh.blackboard.outliner\dev\` on Windows). Override with `ELECTROBUN_APP_DATA` for dev.
 - **Manual save mode** — Edits write directly to DB; backup created on first edit. Save commits; Discard restores from backup. `Ctrl+S` to save.
+
+## Getting Around
+
+Three UI surfaces tie the whole app together — learn these first.
+
+### Command Palette (`Ctrl+P`)
+
+Press `Ctrl+P` to open a searchable list of everything you can do. Type to filter, then `Enter` to run. It covers:
+
+- All registered commands (create node, export, toggle sidebar, etc.)
+- Keyboard shortcut display for each command
+- Recently used commands appear at the top
+- Works as a launcher — you never need to memorize shortcuts
+
+### Context Menu (Right-Click)
+
+Right-click any bullet (`•`) to see actions relevant to that node:
+
+- Copy block reference as `((id))`
+- Create links, pin bookmarks, open image galleries
+- Other plugins add items here — the menu grows with your setup
+
+### Sidebar (Toggle from Command Palette)
+
+The right sidebar hosts multiple **tabs**:
+
+| Tab | Source plugin | Shows |
+|-----|---------------|-------|
+| ★ Bookmarks | Core: Bookmarks | Nodes you've pinned for quick access |
+| Workspace | Core: Workspace | Temporary pins — clears on restart |
+| Links | Node Links | Incoming/outgoing links for the focused node |
+
+Open it via `Ctrl+P` → "Toggle Sidebar", or resize by dragging its left edge.
+
+## Plugins
+
+All features are implemented as plugins. Enable or disable each in **Settings → Plugins**.
+
+### System (always enabled)
+
+| Plugin | Description |
+|--------|-------------|
+| **Core: Node Operations** | Outline CRUD, tree queries, data model — the backbone of the app |
+| **Core: Settings** | Plugin management, app preferences, import/export settings |
+
+### Editing
+
+| Plugin | Type | Default | Description |
+|--------|------|---------|-------------|
+| **Core: Keyboard Shortcuts** | core | on | Enter, Tab, Backspace, arrow keys for outliner operations |
+| **Core: Drag & Drop** | core | on | Drag a node onto another to reparent it |
+
+### Search & Navigation
+
+| Plugin | Type | Default | Description |
+|--------|------|---------|-------------|
+| **Core: Full-Text Search** | core | on | FTS5 search across all nodes |
+| **Vim Navigation** | community | off | `Alt+V` for Vim-style hint-based keyboard navigation. [Guide →](docs/vim-nav-user-guide.md) |
+
+### Content Features
+
+| Plugin | Type | Default | Description |
+|--------|------|---------|-------------|
+| **Core: Bookmarks** | core | on | Pin nodes as bookmarks in the sidebar |
+| **Core: Workspace** | core | on | Temporary pin workspace — clears on restart |
+| **Block References** | community | on | `((block-id))` syntax for cross-references with hover preview |
+| **Node Links** | community | off | Directed, weighted links between nodes with a sidebar manager |
+| **Page Mode** | community | off | `[[wikilink]]` page system — turn blocks into pages |
+
+### Media
+
+| Plugin | Type | Default | Description |
+|--------|------|---------|-------------|
+| **Core: Image Viewer** | core | on | Inline `![](path)` image rendering with fullscreen zoom |
+| **Image Gallery** | community | off | Browse all images under a node with arrow key navigation |
+
+### Export
+
+| Plugin | Type | Default | Description |
+|--------|------|---------|-------------|
+| **Core: Export** | core | on | Export outline as JSON, Markdown, OPML, plain text, or HTML |
 
 ## Project Structure
 
