@@ -30,6 +30,15 @@ let statusBar: HTMLElement | null = null;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let hintElements: HTMLElement[] = [];
 
+// ─── Debug logging ────────────────────────────────
+const debugLogs: string[] = [];
+function logDebug(msg: string): void {
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = `[${ts}] ${msg}`;
+  console.log(line);
+  debugLogs.push(line);
+}
+
 const CSS = `
 .vim-hint {
   display: inline-flex;
@@ -426,6 +435,7 @@ function showError(msg: string): void {
 }
 
 function jumpTo(entry: HintEntry): void {
+  logDebug(`JUMP start type=${entry.type} nodeId=${entry.nodeId} mode=${navModeType}`);
   entry.el.scrollIntoView({ block: "center", behavior: "smooth" });
 
   if (entry.type === "crumb" || entry.type === "panel") {
@@ -437,23 +447,23 @@ function jumpTo(entry: HintEntry): void {
     return;
   }
 
-  // Node: focus (both modes), edit only in "edit" mode
-  store.setFocusedNode(entry.nodeId);
+  const nodeId = entry.nodeId;
 
   if (navModeType === "edit") {
-    requestAnimationFrame(() => {
-      const editor = entry.el.querySelector<HTMLElement>(".node-editor");
-      if (editor) {
-        editor.focus();
-      }
-    });
+    store.setFocusedNode(nodeId);
+    logDebug(`JUMP edit-mode: setFocusedNode(${nodeId}) → editor opens`);
+  } else {
+    store.zoomIn(nodeId);
+    logDebug(`JUMP focus-mode: zoomIn(${nodeId}) → view zooms to children`);
   }
 }
 
 function handleHintKey(e: KeyboardEvent): void {
   const key = e.key;
+  logDebug(`KEY  key=${key} buffer_before="${keyBuffer}"`);
 
   if (key === "Escape") {
+    logDebug("KEY  Escape → exitNavMode");
     e.preventDefault();
     e.stopImmediatePropagation();
     exitNavMode();
@@ -465,6 +475,7 @@ function handleHintKey(e: KeyboardEvent): void {
     e.stopImmediatePropagation();
     if (keyBuffer.length > 0) {
       keyBuffer = keyBuffer.slice(0, -1);
+      logDebug(`KEY  Backspace → buffer="${keyBuffer}"`);
       updateStatusBar();
       updateHintDimming();
     }
@@ -474,8 +485,10 @@ function handleHintKey(e: KeyboardEvent): void {
   if (key === "Enter") {
     e.preventDefault();
     e.stopImmediatePropagation();
+    logDebug(`KEY  Enter → buffer="${keyBuffer}"`);
     if (hintMap.has(keyBuffer)) {
       const entry = hintMap.get(keyBuffer)!;
+      logDebug(`JUMP Enter-confirm type=${entry.type} nodeId=${entry.nodeId} mode=${navModeType}`);
       jumpTo(entry);
       exitNavMode();
     }
@@ -487,11 +500,13 @@ function handleHintKey(e: KeyboardEvent): void {
     e.stopImmediatePropagation();
 
     keyBuffer += key;
+    logDebug(`KEY  hint key="${key}" → buffer="${keyBuffer}"`);
     updateStatusBar();
 
     // Exact match — but only jump if no longer hints share this prefix
     if (hintMap.has(keyBuffer) && !hasLongerHintsFor(keyBuffer)) {
       const entry = hintMap.get(keyBuffer)!;
+      logDebug(`JUMP exact-match type=${entry.type} nodeId=${entry.nodeId} mode=${navModeType} label="${keyBuffer}"`);
       jumpTo(entry);
       exitNavMode();
       return;
@@ -499,6 +514,7 @@ function handleHintKey(e: KeyboardEvent): void {
 
     const matching = getMatchingHints();
     if (matching.length === 0) {
+      logDebug(`KEY  no match → pop key`);
       showError("No match");
       keyBuffer = keyBuffer.slice(0, -1);
       updateStatusBar();
@@ -518,12 +534,16 @@ function enterNavMode(mode: "edit" | "focus"): void {
   const panels = getPanelElements();
   const nodes = getNodeElements();
 
+  logDebug(`ENTER navMode: type=${mode} crumbs=${crumbs.length} panels=${panels.length} nodes=${nodes.length}`);
+
   if (crumbs.length === 0 && panels.length === 0 && nodes.length === 0) {
+    logDebug("ENTER abort: no targets found");
     navMode = false;
     return;
   }
 
   hintMap = assignHints(crumbs, panels, nodes);
+  logDebug(`ENTER hints assigned: ${hintMap.size} total`);
   showStatusBar();
   updateStatusBar();
 
@@ -563,6 +583,7 @@ function removeKeydownHandler(): void {
 }
 
 function exitNavMode(): void {
+  logDebug("EXIT navMode");
   navMode = false;
   removeKeydownHandler();
   removeAllHints();
@@ -604,6 +625,19 @@ const plugin: RendererPlugin = {
       category: "Navigation",
       keywords: ["vim", "hint", "jump", "navigate", "keyboard", "focus"],
       execute: () => toggleNavMode("focus"),
+    });
+
+    ctx.registerCommand({
+      id: "dump-debug-logs",
+      name: "Vim Nav: Dump Debug Logs",
+      execute: () => {
+        const blob = new Blob([debugLogs.join("\n")], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `vim-nav-debug-${Date.now()}.txt`;
+        a.click();
+        logDebug("DUMP debug logs downloaded");
+      },
     });
   },
 
