@@ -5,10 +5,19 @@ import { store } from "../../state/store";
 
 const HINT_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"] as const;
 
+type HintType = "node" | "crumb";
+
 interface HintEntry {
   el: HTMLElement;
   label: string;
   nodeId: string;
+  type: HintType;
+}
+
+interface CrumbTarget {
+  el: HTMLElement;
+  nodeId: string;
+  isHome: boolean;
 }
 
 let ctxRef: RendererPluginContext | null = null;
@@ -43,6 +52,15 @@ const CSS = `
   transition: opacity 0.1s;
   user-select: none;
   -webkit-user-select: none;
+}
+.vim-hint.crumb {
+  color: #1a1a1a;
+  background: #89b4fa;
+  border: 1px solid #74a8e8;
+}
+.vim-hint.selected {
+  box-shadow: 0 0 0 2px #a6e3a1;
+  transform: scale(1.1);
 }
 .vim-hint.dim {
   opacity: 0.25;
@@ -81,6 +99,9 @@ const CSS = `
 }
 .vim-nav-status .vim-nav-count {
   color: #a6adc8;
+}
+.vim-nav-status .vim-nav-confirm {
+  color: #a6e3a1;
 }
 .vim-nav-status .vim-nav-error {
   color: #f38ba8;
@@ -128,8 +149,31 @@ function buildCombos(length: number): string[] {
   return result;
 }
 
-function getVisibleNodeElements(): HTMLElement[] {
-  const all = document.querySelectorAll<HTMLElement>(".outline-node[data-node-id]");
+function getCrumbElements(): CrumbTarget[] {
+  const results: CrumbTarget[] = [];
+
+  const homeBtn = document.querySelector<HTMLElement>(".breadcrumb-home");
+  if (homeBtn) {
+    results.push({ el: homeBtn, nodeId: "__home__", isHome: true });
+  }
+
+  const crumbItems = document.querySelectorAll<HTMLElement>(
+    ".breadcrumb-item[data-node-id]"
+  );
+  for (const el of crumbItems) {
+    const nodeId = el.dataset.nodeId;
+    if (nodeId) {
+      results.push({ el, nodeId, isHome: false });
+    }
+  }
+
+  return results;
+}
+
+function getNodeElements(): HTMLElement[] {
+  const all = document.querySelectorAll<HTMLElement>(
+    ".outline-node[data-node-id]"
+  );
   const results: HTMLElement[] = [];
   for (const el of all) {
     const nodeId = el.dataset.nodeId;
@@ -138,26 +182,56 @@ function getVisibleNodeElements(): HTMLElement[] {
   return results;
 }
 
-function assignHints(nodes: HTMLElement[]): Map<string, HintEntry> {
-  const labels = generateHintLabels(nodes.length);
-  const map = new Map<string, HintEntry>();
+function injectHint(el: HTMLElement, label: string, type: HintType): HTMLElement {
+  const hintEl = document.createElement("span");
+  hintEl.className = `vim-hint ${type === "crumb" ? "crumb" : ""}`;
+  hintEl.textContent = label;
+  hintEl.dataset.vimHint = label;
 
-  for (let i = 0; i < nodes.length; i++) {
-    const el = nodes[i];
-    const label = labels[i];
-    const nodeId = el.dataset.nodeId!;
-
-    map.set(label, { el, label, nodeId });
-
-    const hintEl = document.createElement("span");
-    hintEl.className = "vim-hint";
-    hintEl.textContent = label;
-    hintEl.dataset.vimHint = label;
-
+  if (type === "node") {
     const row = el.querySelector<HTMLElement>(":scope > .node-row");
     if (row) {
       row.insertBefore(hintEl, row.firstChild);
+    } else {
+      el.insertBefore(hintEl, el.firstChild);
     }
+  } else {
+    el.insertBefore(hintEl, el.firstChild);
+  }
+
+  return hintEl;
+}
+
+function assignHints(
+  crumbs: CrumbTarget[],
+  nodes: HTMLElement[]
+): Map<string, HintEntry> {
+  const total = crumbs.length + nodes.length;
+  const labels = generateHintLabels(total);
+  const map = new Map<string, HintEntry>();
+  hintElements = [];
+
+  let i = 0;
+
+  for (const crumb of crumbs) {
+    const label = labels[i++];
+    const entry: HintEntry = {
+      el: crumb.el,
+      label,
+      nodeId: crumb.nodeId,
+      type: "crumb",
+    };
+    map.set(label, entry);
+    const hintEl = injectHint(crumb.el, label, "crumb");
+    hintElements.push(hintEl);
+  }
+
+  for (const node of nodes) {
+    const label = labels[i++];
+    const nodeId = node.dataset.nodeId!;
+    const entry: HintEntry = { el: node, label, nodeId, type: "node" };
+    map.set(label, entry);
+    const hintEl = injectHint(node, label, "node");
     hintElements.push(hintEl);
   }
 
@@ -179,10 +253,67 @@ function showStatusBar(): void {
     <span>Vim Nav</span>
     <span class="vim-nav-buffer"><span class="vim-nav-text"></span><span class="vim-nav-cursor"></span></span>
     <span class="vim-nav-count"></span>
+    <span class="vim-nav-confirm"></span>
     <span class="vim-nav-hint"></span>
   `;
   statusBar.style.display = "none";
   document.body.appendChild(statusBar);
+}
+
+function getMatchingHints(): HintEntry[] {
+  if (!keyBuffer) return Array.from(hintMap.values());
+  const results: HintEntry[] = [];
+  for (const [label, entry] of hintMap) {
+    if (label.startsWith(keyBuffer)) {
+      results.push(entry);
+    }
+  }
+  return results;
+}
+
+function hasLongerHintsFor(prefix: string): boolean {
+  for (const [label] of hintMap) {
+    if (label.length > prefix.length && label.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function updateHintDimming(): void {
+  const allMatching = getMatchingHints();
+  const matchingSet = new Set(allMatching.map((h) => h.label));
+
+  // Find the single exact match (if buffer matches exactly and needs Enter)
+  const exactMatch = hintMap.has(keyBuffer) ? hintMap.get(keyBuffer)! : null;
+  const needsEnter = exactMatch && hasLongerHintsFor(keyBuffer);
+
+  for (const [label, entry] of hintMap) {
+    const hintEl = findHintElement(entry.el, label);
+    if (!hintEl) continue;
+
+    if (!keyBuffer) {
+      hintEl.classList.remove("dim", "selected");
+    } else {
+      hintEl.classList.toggle("dim", !matchingSet.has(label));
+
+      // Highlight the exact match that needs Enter
+      if (needsEnter && label === exactMatch!.label) {
+        hintEl.classList.add("selected");
+      } else {
+        hintEl.classList.remove("selected");
+      }
+    }
+  }
+}
+
+function findHintElement(
+  parentEl: HTMLElement,
+  label: string
+): HTMLElement | null {
+  return parentEl.querySelector<HTMLElement>(
+    `.vim-hint[data-vim-hint="${label}"]`
+  );
 }
 
 function updateStatusBar(): void {
@@ -192,19 +323,33 @@ function updateStatusBar(): void {
   const textEl = statusBar.querySelector(".vim-nav-text");
   const cursorEl = statusBar.querySelector(".vim-nav-cursor");
   const countEl = statusBar.querySelector(".vim-nav-count");
+  const confirmEl = statusBar.querySelector(".vim-nav-confirm") as HTMLElement | null;
   const hintEl = statusBar.querySelector(".vim-nav-hint") as HTMLElement | null;
 
   if (textEl) textEl.textContent = keyBuffer;
   if (cursorEl) (cursorEl as HTMLElement).style.display = "";
   if (countEl) countEl.textContent = `(${hintMap.size} hints)`;
 
+  if (keyBuffer.length === 0) {
+    if (confirmEl) confirmEl.textContent = "";
+    if (hintEl) hintEl.textContent = "";
+    return;
+  }
+
+  const matching = getMatchingHints();
+  const exactMatch = hintMap.has(keyBuffer) ? hintMap.get(keyBuffer)! : null;
+  const needsEnter = exactMatch && hasLongerHintsFor(keyBuffer);
+
+  if (needsEnter && confirmEl) {
+    const typeLabel = exactMatch.type === "crumb" ? "breadcrumb" : "node";
+    confirmEl.textContent = `[Enter to jump to ${typeLabel}]`;
+  } else if (confirmEl) {
+    confirmEl.textContent = "";
+  }
+
   if (hintEl) {
-    if (keyBuffer.length === 0) {
-      hintEl.textContent = "";
-    } else {
-      const matching = getMatchingHints();
-      hintEl.textContent = `${matching.length} matching`;
-    }
+    hintEl.textContent = `${matching.length} matching`;
+    hintEl.classList.remove("vim-nav-error");
   }
 }
 
@@ -233,51 +378,28 @@ function showError(msg: string): void {
   }
 }
 
-function getMatchingHints(): HintEntry[] {
-  if (!keyBuffer) return Array.from(hintMap.values());
-  const results: HintEntry[] = [];
-  for (const [label, entry] of hintMap) {
-    if (label.startsWith(keyBuffer)) {
-      results.push(entry);
-    }
-  }
-  return results;
-}
+function jumpTo(entry: HintEntry): void {
+  entry.el.scrollIntoView({ block: "center", behavior: "smooth" });
 
-function updateHintDimming(): void {
-  if (!keyBuffer) {
-    for (const [, entry] of hintMap) {
-      const hintEl = findHintElement(entry.el, entry.label);
-      if (hintEl) hintEl.classList.remove("dim");
+  if (entry.type === "crumb") {
+    if (entry.nodeId === "__home__") {
+      store.zoomToRoot();
+    } else {
+      store.zoomIn(entry.nodeId);
     }
     return;
   }
 
-  const matching = new Set(getMatchingHints().map((h) => h.label));
-  for (const [label, entry] of hintMap) {
-    const hintEl = findHintElement(entry.el, entry.label);
-    if (hintEl) {
-      hintEl.classList.toggle("dim", !matching.has(label));
-    }
-  }
-}
-
-function findHintElement(nodeEl: HTMLElement, label: string): HTMLElement | null {
-  return nodeEl.querySelector<HTMLElement>(`.vim-hint[data-vim-hint="${label}"]`);
-}
-
-function jumpTo(entry: HintEntry): void {
-  entry.el.scrollIntoView({ block: "center", behavior: "smooth" });
-
+  // Node: focus and edit
   requestAnimationFrame(() => {
     store.setFocusedNode(entry.nodeId);
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const editor = entry.el.querySelector<HTMLElement>(".node-editor");
       if (editor) {
         editor.focus();
       }
-    }, 50);
+    });
   });
 }
 
@@ -302,14 +424,26 @@ function handleHintKey(e: KeyboardEvent): void {
     return;
   }
 
-  if (key.length === 1 && HINT_KEYS.includes(key as typeof HINT_KEYS[number])) {
+  if (key === "Enter") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (hintMap.has(keyBuffer)) {
+      const entry = hintMap.get(keyBuffer)!;
+      jumpTo(entry);
+      exitNavMode();
+    }
+    return;
+  }
+
+  if (key.length === 1 && HINT_KEYS.includes(key as (typeof HINT_KEYS)[number])) {
     e.preventDefault();
     e.stopImmediatePropagation();
 
     keyBuffer += key;
     updateStatusBar();
 
-    if (hintMap.has(keyBuffer)) {
+    // Exact match — but only jump if no longer hints share this prefix
+    if (hintMap.has(keyBuffer) && !hasLongerHintsFor(keyBuffer)) {
       const entry = hintMap.get(keyBuffer)!;
       jumpTo(entry);
       exitNavMode();
@@ -332,13 +466,15 @@ function enterNavMode(): void {
   if (navMode) return;
   navMode = true;
 
-  const nodes = getVisibleNodeElements();
-  if (nodes.length === 0) {
+  const crumbs = getCrumbElements();
+  const nodes = getNodeElements();
+
+  if (crumbs.length === 0 && nodes.length === 0) {
     navMode = false;
     return;
   }
 
-  hintMap = assignHints(nodes);
+  hintMap = assignHints(crumbs, nodes);
   showStatusBar();
   updateStatusBar();
 
