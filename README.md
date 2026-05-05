@@ -37,11 +37,6 @@ bun run build
 - **Zoom** — Click a bullet with children to zoom into that section
 - **Breadcrumb navigation** — Navigate back up the hierarchy
 - **Search** — Full-text search across all nodes (FTS5)
-- **Keyboard shortcuts**:
-  - `Enter` — Create new sibling
-  - `Tab` / `Shift+Tab` — Indent / Outdent
-  - `Backspace` (on empty) — Delete node
-  - `Alt+↑` / `Alt+↓` — Move node up/down
 - **Vim-style keyboard navigation** — Jump to any node without the mouse. [User Guide →](docs/vim-nav-user-guide.md)
 - **Drag & drop** — Reorder and nest nodes
 - **SQLite storage** — Data saved in stable app data dir (e.g. `%LOCALAPPDATA%\sh.blackboard.outliner\dev\` on Windows). Override with `ELECTROBUN_APP_DATA` for dev.
@@ -49,36 +44,45 @@ bun run build
 
 ## Getting Around
 
-Three UI surfaces tie the whole app together — learn these first.
+### Keyboard-First
 
-### Command Palette (`Ctrl+P`)
+The app can be operated entirely without the mouse.
 
-Press `Ctrl+P` to open a searchable list of everything you can do. Type to filter, then `Enter` to run. It covers:
+**Command Palette (`Ctrl+P`)** — the central launcher. Press `Ctrl+P`, type to filter, `Enter` to run. Covers every registered command; recently used ones appear at the top. Everything below is also reachable from here.
 
-- All registered commands (create node, export, toggle sidebar, etc.)
-- Keyboard shortcut display for each command
-- Recently used commands appear at the top
-- Works as a launcher — you never need to memorize shortcuts
+**Keyboard Shortcuts** — direct keybindings for frequent actions:
 
-### Context Menu (Right-Click)
+| Shortcut | Action | Plugin |
+|----------|--------|--------|
+| `Enter` | Create new sibling below | Core: Keyboard |
+| `Shift+Enter` | Create new sibling above | Core: Keyboard |
+| `Tab` / `Shift+Tab` | Indent / Outdent | Core: Keyboard |
+| `Backspace` (empty node) | Delete node | Core: Keyboard |
+| `Alt+↑` / `Alt+↓` | Focus previous / next node | Core: Keyboard |
+| `Alt+Shift+↑/↓` | Move node up / down | Core: Keyboard |
+| `Ctrl+Enter` | Create new root node | Core: Keyboard |
+| `Ctrl+F` | Focus search input | Core: Keyboard |
+| `Ctrl+S` | Save all changes | App |
+| `Ctrl+P` | Open command palette | Core: Command Palette |
+| `Ctrl+Shift+C` | Copy block reference `((id))` | Core: Context Menu |
 
-Right-click any bullet (`•`) to see actions relevant to that node:
+Enable or disable plugins to free up shortcut combinations. Open `Ctrl+P` to see every shortcut currently active.
 
-- Copy block reference as `((id))`
-- Create links, pin bookmarks, open image galleries
-- Other plugins add items here — the menu grows with your setup
+**Vim Navigation** (`Alt+V`) — the final piece for pure-keyboard flow. Every node, breadcrumb, and panel gets a hint label; type the label to jump. Two modes: Edit (jump + start typing) or Focus (jump + zoom in). Enable it in **Settings → Plugins**. [Full guide →](docs/vim-nav-user-guide.md)
 
-### Sidebar (Toggle from Command Palette)
+### Mouse-Assisted
 
-The right sidebar hosts multiple **tabs**:
+**Context Menu** — right-click any bullet (`•`) to see per-node actions: copy block reference, create links, pin bookmarks, open image galleries. Other plugins add items here automatically.
 
-| Tab | Source plugin | Shows |
-|-----|---------------|-------|
+**Drag & Drop** — drag a node onto another to reparent it. Enabled by default (`Core: Drag & Drop` plugin).
+
+**Sidebar** — the right panel for pinned content. Open via `Ctrl+P` → "Toggle Sidebar", or resize by dragging its left edge. Hosts multiple tabs:
+
+| Tab | Source | Shows |
+|-----|--------|-------|
 | ★ Bookmarks | Core: Bookmarks | Nodes you've pinned for quick access |
 | Workspace | Core: Workspace | Temporary pins — clears on restart |
 | Links | Node Links | Incoming/outgoing links for the focused node |
-
-Open it via `Ctrl+P` → "Toggle Sidebar", or resize by dragging its left edge.
 
 ## Plugins
 
