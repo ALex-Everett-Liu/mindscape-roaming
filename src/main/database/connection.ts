@@ -10,17 +10,23 @@ const BACKUP_SUFFIX = ".backup";
 /**
  * Returns the data directory for the database.
  * 1. ELECTROBUN_APP_DATA env var (explicit override).
- * 2. ./data/outliner.db in cwd (dev convenience — only if DB already exists, so it
- *    never accidentally creates a blank DB at a wrong cwd).
+ * 2. Walk up from cwd looking for data/outliner.db (dev convenience — only if
+ *    DB already exists, so it never creates a blank DB at a wrong location).
  * 3. Utils.paths.userData — stable OS app-data path (production).
  */
 export function getDataDir(): string {
   if (process.env.ELECTROBUN_APP_DATA) {
     return path.resolve(process.env.ELECTROBUN_APP_DATA);
   }
-  const cwdData = path.resolve("./data");
-  if (existsSync(path.join(cwdData, "outliner.db"))) {
-    return cwdData;
+  let dir = path.resolve(".");
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, "data");
+    if (existsSync(path.join(candidate, "outliner.db"))) {
+      return candidate;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
   return Utils.paths.userData;
 }

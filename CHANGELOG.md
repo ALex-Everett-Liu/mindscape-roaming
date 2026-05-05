@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-05
+
+### Added
+
+- **Image Viewer plugin** (`core-image-viewer`, built-in, enabled by default): Render local images inline in the outliner via markdown `![](path)` syntax
+  - **Image syntax**: `![](path)` renders at natural size; `![](path =WIDTH)` sets width; `![](path =xHEIGHT)` sets height; `![](path =WIDTHxHEIGHT)` sets exact dimensions
+  - **Path resolution**: Images stored under `assets/` or `attachments/` folders relative to the vault root; path sent via RPC and returned as base64 data URL for in-process rendering
+  - **Inline rendering**: Images appear as `<img>` elements inside `contenteditable="false"` wrappers when editors lose focus (same pattern as block references); original `![](...)` syntax preserved via `data-original-text` and restored on focus — content is never mutated
+  - **Fullscreen viewer**: Double-click an image or right-click → "View Image Fullscreen" to open a fixed overlay with scroll-wheel zoom (10%–1000%) and click-drag pan; close via Escape, close button, or click outside; left-click enters edit mode normally
+  - **Resize handle**: Bottom-right corner drag handle on rendered images; hold Shift to maintain aspect ratio; dimensions saved back to the `![](path =WxH)` syntax
+  - **Commands/context menu**: "Insert Image" command (palette + right-click) appends `![](assets/image.png)` template; "View Image Fullscreen" opens the first image in the focused node
+  - **Security**: Main-process `readImageFile` RPC handler restricts file access to within the vault data directory; only allows common image extensions (.png, .jpg, .jpeg, .gif, .webp, .bmp, .svg)
+
+### Changed
+
+- **Data directory auto-discovery**: `getDataDir()` now walks up 6 parent directories from `cwd` looking for `data/outliner.db` before falling back to `Utils.paths.userData`. This means launching the dev build from anywhere inside the project tree automatically uses `./data/` — no env var required
+
+### Fixed
+
+- **Image syntax destroyed on edit**: `unwrapImages()` previously used `textContent = textContent` which flattened `.image-wrapper` elements into their visible text, permanently replacing `![](path)` with `[Image not found: ...]`. Now each wrapper stores the original syntax in `data-original-text` and restores it exactly on focus — user content is never mutated
+
 ## [0.3.7] - 2026-05-03
 
 ### Added
@@ -21,15 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Sidebar tab**: "Workspace" tab in the shared sidebar with content preview and × unpin button
   - **Context menu**: Right-click → "★ Pin to Workspace" / "✕ Unpin from Workspace"
   - **Commands**: "Pin to Workspace" / "Unpin from Workspace" in the command palette
-
-- **Image Viewer plugin** (`core-image-viewer`, built-in, enabled by default): Render local images inline in the outliner via markdown `![](path)` syntax
-  - **Image syntax**: `![](path)` renders at natural size; `![](path =WIDTH)` sets width; `![](path =WIDTHxHEIGHT)` sets exact dimensions
-  - **Path resolution**: Images stored under `assets/` or `attachments/` folders relative to the vault root; path sent via RPC and returned as base64 data URL for in-process rendering
-  - **Inline rendering**: Images appear as `<img>` elements inside `contenteditable="false"` wrappers when editors lose focus (same pattern as block references); unwrapped back to text when editing
-  - **Fullscreen viewer**: Click any image to open a fixed overlay with scroll-wheel zoom (10%–1000%) and click-drag pan; close via Escape, close button, or click outside
-  - **Resize handle**: Bottom-right corner drag handle on rendered images; hold Shift to maintain aspect ratio; dimensions saved back to the `![](path =WxH)` syntax
-  - **Commands/context menu**: "Insert Image" command (palette + right-click) appends `![](assets/image.png)` template to the focused node
-  - **Security**: Main-process `readImageFile` handler restricts file access to within the vault data directory; only allows common image extensions (.png, .jpg, .jpeg, .gif, .webp, .bmp, .svg)
 
 ### Changed
 
@@ -423,7 +435,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.7...v0.4.0
+[0.3.7]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.6...v0.3.7
+[0.3.6]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.2...v0.3.3

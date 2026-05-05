@@ -4,7 +4,7 @@ import { manifest } from "./manifest";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
 
-const IMAGE_REGEX = /!\[.*?\]\(\s*([^\s=)]+)(?:\s*=\s*(\d+)(?:\s*x\s*(\d+))?)?\s*\)/g;
+const IMAGE_REGEX = /!\[.*?\]\(\s*([^\s=)]+)(?:\s*=\s*(\d+)?\s*(?:x\s*(\d+))?)?\s*\)/g;
 
 interface ImageMatch {
   fullMatch: string;
@@ -200,6 +200,9 @@ function buildImageSyntax(path: string, width?: number, height?: number): string
   }
   if (width !== undefined) {
     return `![](${path} =${width})`;
+  }
+  if (height !== undefined) {
+    return `![](${path} =x${height})`;
   }
   return `![](${path})`;
 }
@@ -514,8 +517,7 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
       wrapper.className = "image-wrapper";
       wrapper.setAttribute("contenteditable", "false");
       wrapper.dataset.imagePath = match.path;
-      wrapper.dataset.matchStart = String(match.index);
-      wrapper.dataset.matchLength = String(match.length);
+      wrapper.dataset.originalText = match.fullMatch;
 
       const dataUrl = imageCache.get(match.path);
 
@@ -533,7 +535,7 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
       if (match.width) img.style.width = `${match.width}px`;
       if (match.height) img.style.height = `${match.height}px`;
 
-      img.addEventListener("click", (e) => {
+      img.addEventListener("dblclick", (e) => {
         e.preventDefault();
         e.stopPropagation();
         openFullscreen(dataUrl);
@@ -548,8 +550,13 @@ async function transformEditor(editor: HTMLElement): Promise<void> {
 }
 
 function unwrapImages(editor: HTMLElement): void {
-  if (editor.querySelector(".image-wrapper")) {
-    editor.textContent = editor.textContent;
+  const wrappers = editor.querySelectorAll(".image-wrapper");
+  for (const wrapper of wrappers) {
+    const original = (wrapper as HTMLElement).dataset.originalText;
+    if (original) {
+      const textNode = document.createTextNode(original);
+      wrapper.parentNode?.replaceChild(textNode, wrapper);
+    }
   }
 }
 
@@ -635,6 +642,20 @@ const plugin: RendererPlugin = {
       },
     });
 
+    void ctx.emit("context-menu:register", {
+      id: "image-view-fullscreen",
+      pluginId: "core-image-viewer",
+      label: "View Image Fullscreen",
+      execute: async (_nodeId: string) => {
+        const res = await api.getNode(_nodeId);
+        if (!res.success || !res.data) return;
+        const matches = parseImageSyntax(res.data.content);
+        if (matches.length === 0) return;
+        const dataUrl = imageCache.get(matches[0].path) ?? await resolveImage(matches[0].path);
+        if (dataUrl) openFullscreen(dataUrl);
+      },
+    });
+
     await scanAndTransform();
   },
 
@@ -655,6 +676,10 @@ const plugin: RendererPlugin = {
       void ctxRef.emit("context-menu:unregister", {
         pluginId: "core-image-viewer",
         id: "image-insert",
+      });
+      void ctxRef.emit("context-menu:unregister", {
+        pluginId: "core-image-viewer",
+        id: "image-view-fullscreen",
       });
       ctxRef = null;
     }
