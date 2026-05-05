@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Context menu**: Right-click → "★ Pin to Workspace" / "✕ Unpin from Workspace"
   - **Commands**: "Pin to Workspace" / "Unpin from Workspace" in the command palette
 
+- **Image Viewer plugin** (`core-image-viewer`, built-in, enabled by default): Render local images inline in the outliner via markdown `![](path)` syntax
+  - **Image syntax**: `![](path)` renders at natural size; `![](path =WIDTH)` sets width; `![](path =WIDTHxHEIGHT)` sets exact dimensions
+  - **Path resolution**: Images stored under `assets/` or `attachments/` folders relative to the vault root; path sent via RPC and returned as base64 data URL for in-process rendering
+  - **Inline rendering**: Images appear as `<img>` elements inside `contenteditable="false"` wrappers when editors lose focus (same pattern as block references); unwrapped back to text when editing
+  - **Fullscreen viewer**: Click any image to open a fixed overlay with scroll-wheel zoom (10%–1000%) and click-drag pan; close via Escape, close button, or click outside
+  - **Resize handle**: Bottom-right corner drag handle on rendered images; hold Shift to maintain aspect ratio; dimensions saved back to the `![](path =WxH)` syntax
+  - **Commands/context menu**: "Insert Image" command (palette + right-click) appends `![](assets/image.png)` template to the focused node
+  - **Security**: Main-process `readImageFile` handler restricts file access to within the vault data directory; only allows common image extensions (.png, .jpg, .jpeg, .gif, .webp, .bmp, .svg)
+
 ### Changed
 
 - **Context menu refactored across all plugins**: Right-click context menu items (link creation, bookmark pin/unpin, copy block reference) are now registered by their respective plugins through the centralized `core-context-menu` plugin instead of being hardcoded in component JSX or scattered across plugin HTML

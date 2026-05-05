@@ -15,7 +15,7 @@ const BACKUP_SUFFIX = ".backup";
  * ran from a different dir (e.g. build output), a new empty DB was created each
  * restart instead of reusing the existing one.
  */
-function getDataDir(): string {
+export function getDataDir(): string {
   if (process.env.ELECTROBUN_APP_DATA) {
     return path.resolve(process.env.ELECTROBUN_APP_DATA);
   }

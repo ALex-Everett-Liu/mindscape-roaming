@@ -130,6 +130,11 @@ export interface IncrementBookmarkClickParams {
   nodeId: string;
 }
 
+// ─── Image Viewer Types ────────────────────────────
+export interface ReadImageFileParams {
+  path: string;
+}
+
 // ─── RPC Response Wrappers ───────────────────────────
 export interface RpcResult<T> {
   success: boolean;

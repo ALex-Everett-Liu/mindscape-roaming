@@ -166,6 +166,10 @@ export class PluginManager {
         incrementBookmarkClick: (params: { nodeId: string }) =>
           wrap("incrementBookmarkClick", r.get("incrementBookmarkClick"))(params),
 
+        // Image Viewer (core-image-viewer plugin)
+        readImageFile: (params: { path: string }) =>
+          wrap("readImageFile", r.get("readImageFile"))(params),
+
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),
         enablePlugin: (p: { pluginId: string }) =>
