@@ -1,6 +1,7 @@
 node_modules/
 data/
 logs/agent-md/
+logs/debug-logs/
 dist/
 build/
 artifacts/

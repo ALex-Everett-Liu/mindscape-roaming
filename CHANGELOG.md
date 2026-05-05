@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-06
+
 ### Added
 
 - **Vim Navigation plugin** (`third-party-vim-nav`, community, disabled by default): Alt+V toggles Vim-style keyboard navigation with hint labels on every visible node
@@ -14,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Keyboard navigation**: Type the hint label to jump; progressive filtering dims non-matching hints; Backspace undoes a keystroke; Enter confirms a partial match when longer hints share the prefix; Escape exits
   - **Breadcrumb & panel hints**: Breadcrumbs (cyan) and ancestor panels (green) have distinct colors; jumping to either zooms into that ancestor or returns to root
   - **Status bar**: Fixed bottom bar shows the active hint buffer with a blinking cursor, total hint count, matching count, and Enter-to-confirm prompt when needed
-  - **Two modes**: Alt+V for Edit mode (hint → jump + start editing), Alt+Shift+V for Focus mode (hint → jump + highlight only)
+  - **Two modes**: Alt+V for Edit mode (hint → jump + start editing), Alt+Shift+V for Focus mode (hint → zoom into node like clicking the bullet)
 
 ## [0.4.1] - 2026-05-05
 
@@ -460,7 +462,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix migration runner: run full migration SQL as single block to avoid breaking triggers with semicolons in `BEGIN...END`
 - Fix loading screen hang: add RPC timeout (15s), error handling, and defer initial load to allow WebSocket connection
 
-[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/ALex-Everett-Liu/mindscape-roaming/compare/v0.3.6...v0.3.7

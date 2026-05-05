@@ -124,3 +124,21 @@ ctx.registerCommand({
 ```
 
 - Remove all debug logging and the dump command before committing the fix.
+
+## Corrupted Input Detection
+
+The user's input box has a known bug: it can inject the agent's thinking process into the user's typed text, corrupt paste headers, or split the user's Chinese characters across the injected content. This produces inputs that are visibly not what the user intended.
+
+### Signs of corrupted input:
+- Chinese text suddenly interrupted by a block of English (the agent's thinking process leaked in)
+- Truncated paste markers (e.g., `[Pas` instead of `[Pasted ~N lines]`)
+- A sentence visibly split into two halves that don't connect
+- The input reads as unnatural, incoherent, or doesn't parse as one person's complete thought
+
+### Mandatory response:
+When the agent detects ANY of the above patterns in the user's input, it MUST:
+1. **Stop immediately.** Do not try to guess, interpret, or act on the corrupted input.
+2. **Ask the user:** "你的消息好像被输入框的 bug 打乱了，能不能再说一遍？"
+3. Do NOT proceed until the user confirms or re-sends a clean input.
+
+The agent must treat corrupted input the same way it treats a corrupted file — unknown content, not to be processed.
