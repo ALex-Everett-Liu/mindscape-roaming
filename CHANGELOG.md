@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Image Gallery plugin** (`third-party-image-gallery`, community, disabled by default): Browse all images in a node and its ancestors with left/right arrow key navigation and fullscreen zoom
+  - **Arrow-key browsing**: Left (`←`) and right (`→`) arrow keys navigate continuously through all images; prev/next buttons also available on hover
+  - **Fullscreen gallery**: Dark overlay with `object-fit: contain` sizing; scroll-wheel zoom (10%–1000%), click-drag pan, zoom percentage indicator
+  - **Image gathering**: Parse `![](path)` syntax from the focused node and all its ancestors (root-to-node order); deduplicate by path
+  - **Preloading**: Adjacent images (prev + next) are preloaded into cache for smooth navigation
+  - **Commands/context menu**: "Open Image Gallery" command (palette + right-click) opens the gallery for the focused node
+  - **Depends on**: `core-image-viewer` for the `readImageFile` RPC handler
+
 ## [0.4.0] - 2026-05-05
 
 ### Added

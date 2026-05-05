@@ -16,6 +16,7 @@ import coreImageViewer from "../plugins/core-image-viewer/index";
 import thirdPartyBlockRef from "../plugins/third-party-block-ref/index";
 import thirdPartyPageMode from "../plugins/third-party-page-mode/index";
 import thirdPartyLinks from "../plugins/third-party-links/index";
+import thirdPartyImageGallery from "../plugins/third-party-image-gallery/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
@@ -33,6 +34,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "third-party-block-ref": thirdPartyBlockRef,
   "third-party-page-mode": thirdPartyPageMode,
   "third-party-links": thirdPartyLinks,
+  "third-party-image-gallery": thirdPartyImageGallery,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */

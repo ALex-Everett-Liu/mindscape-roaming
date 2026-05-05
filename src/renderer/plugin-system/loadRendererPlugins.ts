@@ -19,12 +19,13 @@ import coreImageViewer from "../plugins/core-image-viewer";
 import thirdPartyBlockRef from "../plugins/third-party-block-ref";
 import thirdPartyPageMode from "../plugins/third-party-page-mode";
 import thirdPartyLinks from "../plugins/third-party-links";
+import thirdPartyImageGallery from "../plugins/third-party-image-gallery";
 import { store } from "../state/store";
 import { CoreEvents } from "../../shared/events";
 import { api } from "../rpc/api";
 import type { PluginManifest } from "../../shared/plugin-types";
 
-type RendererPluginId = "core-context-menu" | "core-sidebar" | "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export" | "core-bookmarks" | "core-workspace" | "core-image-viewer" | "third-party-block-ref" | "third-party-page-mode" | "third-party-links";
+type RendererPluginId = "core-context-menu" | "core-sidebar" | "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export" | "core-bookmarks" | "core-workspace" | "core-image-viewer" | "third-party-block-ref" | "third-party-page-mode" | "third-party-links" | "third-party-image-gallery";
 
 const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
   "core-keyboard": coreKeyboard.manifest,
@@ -39,6 +40,7 @@ const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
   "third-party-block-ref": thirdPartyBlockRef.manifest,
   "third-party-page-mode": thirdPartyPageMode.manifest,
   "third-party-links": thirdPartyLinks.manifest,
+  "third-party-image-gallery": thirdPartyImageGallery.manifest,
 };
 
 const RENDERER_PLUGINS: Record<
@@ -57,6 +59,7 @@ const RENDERER_PLUGINS: Record<
   "third-party-block-ref": thirdPartyBlockRef,
   "third-party-page-mode": thirdPartyPageMode,
   "third-party-links": thirdPartyLinks,
+  "third-party-image-gallery": thirdPartyImageGallery,
 };
 
 let eventBus: EventBus | null = null;
@@ -122,7 +125,7 @@ export async function loadRendererPlugins(): Promise<void> {
     res.data.filter((p) => p.enabled).map((p) => p.id as RendererPluginId)
   );
 
-  for (const id of ["core-context-menu", "core-sidebar", "core-keyboard", "core-drag-drop", "core-command-palette", "core-export", "core-bookmarks", "core-workspace", "core-image-viewer", "third-party-block-ref", "third-party-page-mode", "third-party-links"] as const) {
+  for (const id of ["core-context-menu", "core-sidebar", "core-keyboard", "core-drag-drop", "core-command-palette", "core-export", "core-bookmarks", "core-workspace",     "core-image-viewer", "third-party-block-ref", "third-party-page-mode", "third-party-links", "third-party-image-gallery"] as const) {
     if (enabled.has(id)) {
       await loadPlugin(id);
     } else {
