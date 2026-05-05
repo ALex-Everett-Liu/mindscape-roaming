@@ -24,10 +24,12 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState(store.getState());
 
-  const debouncedSearch = useCallback(
-    debounce((query: string) => onSearch(query), 200),
-    [onSearch]
-  );
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
+
+  const debouncedSearch = useRef(
+    debounce((query: string) => onSearchRef.current(query), 200)
+  ).current;
 
   useEffect(() => {
     return store.subscribe(setState);

@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Commands/context menu**: "Open Image Gallery" command (palette + right-click) opens the gallery for the focused node
   - **Depends on**: `core-image-viewer` for the `readImageFile` RPC handler
 
+### Fixed
+
+- **Search input**: Characters no longer get swallowed when typing quickly; debounced function now uses a stable ref pattern so pending timers survive callback identity changes
+
 ## [0.4.0] - 2026-05-05
 
 ### Added
