@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vim Navigation plugin** (`third-party-vim-nav`, community, disabled by default): Alt+V toggles Vim-style keyboard navigation with hint labels on every visible node
+  - **Hint labels**: Home-row keys (`a`, `s`, `d`, `f`, `g`, `h`, `j`, `k`, `l`, `;`) assigned to all expanded `.outline-node` elements in DOM order; multi-character labels for trees with more than 10 nodes
+  - **Keyboard navigation**: Type the hint label to jump and focus that node's editor; progressive filtering dims non-matching hints as you type; Backspace to undo a keystroke, Escape to exit
+  - **Status bar**: Fixed bottom bar shows the active hint buffer with a blinking cursor, total hint count, and current matching count
+  - **Entry/exit**: Alt+V toggles nav mode on/off; matching a hint exits nav mode and focuses the target node for editing
+
 ## [0.4.1] - 2026-05-05
 
 ### Added
