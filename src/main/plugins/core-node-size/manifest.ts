@@ -7,7 +7,7 @@ export const manifest: PluginManifest = {
   description:
     "Adjust node size per block and query nodes by size range.",
   author: "Outliner Team",
-  type: "core",
+  type: "community",
   runtime: "main",
   essential: false,
   enabledByDefault: false,

@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-06
+
 ### Added
 
-- **Node Size plugin** (`core-node-size`, core, disabled by default): adds `node_size` (REAL, default 20.0, range 0.1–100.0) and `category` (TEXT) columns to `outline_nodes`
+- **Node Size plugin** (`core-node-size`, community, disabled by default): adds `node_size` (REAL, default 20.0, range 0.1–100.0) and `category` (TEXT) columns to `outline_nodes`
   - **Adjust Node Size** (right-click): popup with slider + number input + Apply button to set per-node size
   - **Query Nodes by Size** (Ctrl+P → "Query Nodes by Size"): standalone overlay to find all nodes within a size range; results show content preview + size badge, click to zoom
   - `category` field is schema-only for now; queryable via SQL but no UI yet
