@@ -9,7 +9,7 @@ export const manifest: PluginManifest = {
   author: "Outliner Team",
   type: "core",
   runtime: "main",
-  essential: true,
-  enabledByDefault: true,
+  essential: false,
+  enabledByDefault: false,
   dependencies: ["core-node-ops"],
 };

@@ -9,7 +9,7 @@ export const manifest: PluginManifest = {
   author: "Outliner Team",
   type: "core",
   runtime: "renderer",
-  essential: true,
-  enabledByDefault: true,
+  essential: false,
+  enabledByDefault: false,
   dependencies: ["core-context-menu", "core-node-ops"],
 };

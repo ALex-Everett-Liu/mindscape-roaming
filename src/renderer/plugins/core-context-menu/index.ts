@@ -116,6 +116,8 @@ const plugin: RendererPlugin = {
         border-radius: 8px;
         padding: 4px 0;
         min-width: 220px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
         box-shadow: 0 4px 16px rgba(0,0,0,0.3);
       }
 
