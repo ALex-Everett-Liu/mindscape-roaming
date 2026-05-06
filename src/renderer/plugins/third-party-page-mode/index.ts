@@ -102,6 +102,7 @@ const PAGE_CSS = `
 }
 `;
 
+let ctxRef: RendererPluginContext | null = null;
 let styleEl: HTMLStyleElement | null = null;
 let observer: MutationObserver | null = null;
 let unsubStore: (() => void) | null = null;
@@ -487,6 +488,7 @@ const plugin: RendererPlugin = {
   manifest,
 
   async onLoad(ctx: RendererPluginContext) {
+    ctxRef = ctx;
     syncPageCacheFromStore();
     loadBreadcrumbPref();
     injectCSS();
@@ -586,10 +588,50 @@ const plugin: RendererPlugin = {
       },
     });
 
+    // Register context menu items (per-node actions)
+    await ctx.emit("context-menu:register", {
+      id: "page-mode-toggle",
+      pluginId: manifest.id,
+      label: "Toggle Page Mode",
+      dividerBefore: true,
+      execute: (nodeId: string) => {
+        const became = !isPage(nodeId);
+        store.togglePage(nodeId);
+        requestAnimationFrame(() => scanAndTransform());
+        if (became) {
+          showCopyToast("Turned into page. Click [[..]] to enter.");
+        } else {
+          showCopyToast("Removed page mode. Children are visible again.");
+        }
+      },
+    });
+
+    await ctx.emit("context-menu:register", {
+      id: "page-mode-remove",
+      pluginId: manifest.id,
+      label: "Remove Page Mode",
+      execute: (nodeId: string) => {
+        if (!isPage(nodeId)) {
+          showCopyToast("Node is not a page");
+          return;
+        }
+        store.togglePage(nodeId);
+        requestAnimationFrame(() => scanAndTransform());
+        showCopyToast("Removed page mode. Children are visible again.");
+      },
+    });
+
     console.log("[third-party-page-mode] renderer ready");
   },
 
   async onUnload() {
+    if (ctxRef) {
+      await ctxRef.emit("context-menu:unregister", { pluginId: manifest.id, id: "page-mode-toggle" });
+      await ctxRef.emit("context-menu:unregister", { pluginId: manifest.id, id: "page-mode-remove" });
+      ctxRef.unregisterAllCommands();
+      ctxRef = null;
+    }
+
     removeCSS();
 
     if (observer) {
