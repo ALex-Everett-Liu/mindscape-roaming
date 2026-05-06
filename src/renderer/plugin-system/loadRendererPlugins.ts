@@ -21,12 +21,13 @@ import thirdPartyPageMode from "../plugins/third-party-page-mode";
 import thirdPartyLinks from "../plugins/third-party-links";
 import thirdPartyImageGallery from "../plugins/third-party-image-gallery";
 import thirdPartyVimNav from "../plugins/third-party-vim-nav";
+import thirdPartyBlockTimestamps from "../plugins/third-party-block-timestamps";
 import { store } from "../state/store";
 import { CoreEvents } from "../../shared/events";
 import { api } from "../rpc/api";
 import type { PluginManifest } from "../../shared/plugin-types";
 
-type RendererPluginId = "core-context-menu" | "core-sidebar" | "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export" | "core-bookmarks" | "core-workspace" | "core-image-viewer" | "third-party-block-ref" | "third-party-page-mode" | "third-party-links" | "third-party-image-gallery" | "third-party-vim-nav";
+type RendererPluginId = "core-context-menu" | "core-sidebar" | "core-keyboard" | "core-drag-drop" | "core-command-palette" | "core-export" | "core-bookmarks" | "core-workspace" | "core-image-viewer" | "third-party-block-ref" | "third-party-page-mode" | "third-party-links" | "third-party-image-gallery" | "third-party-vim-nav" | "third-party-block-timestamps";
 
 const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
   "core-keyboard": coreKeyboard.manifest,
@@ -43,6 +44,7 @@ const RENDERER_MANIFESTS: Record<RendererPluginId, PluginManifest> = {
   "third-party-links": thirdPartyLinks.manifest,
   "third-party-image-gallery": thirdPartyImageGallery.manifest,
   "third-party-vim-nav": thirdPartyVimNav.manifest,
+  "third-party-block-timestamps": thirdPartyBlockTimestamps.manifest,
 };
 
 const RENDERER_PLUGINS: Record<
@@ -63,6 +65,7 @@ const RENDERER_PLUGINS: Record<
   "third-party-links": thirdPartyLinks,
   "third-party-image-gallery": thirdPartyImageGallery,
   "third-party-vim-nav": thirdPartyVimNav,
+  "third-party-block-timestamps": thirdPartyBlockTimestamps,
 };
 
 let eventBus: EventBus | null = null;
@@ -128,7 +131,7 @@ export async function loadRendererPlugins(): Promise<void> {
     res.data.filter((p) => p.enabled).map((p) => p.id as RendererPluginId)
   );
 
-  for (const id of ["core-context-menu", "core-sidebar", "core-keyboard", "core-drag-drop", "core-command-palette", "core-export", "core-bookmarks", "core-workspace",     "core-image-viewer", "third-party-block-ref", "third-party-page-mode", "third-party-links", "third-party-image-gallery", "third-party-vim-nav"] as const) {
+  for (const id of ["core-context-menu", "core-sidebar", "core-keyboard", "core-drag-drop", "core-command-palette", "core-export", "core-bookmarks", "core-workspace",     "core-image-viewer", "third-party-block-ref", "third-party-page-mode", "third-party-links", "third-party-image-gallery", "third-party-vim-nav", "third-party-block-timestamps"] as const) {
     if (enabled.has(id)) {
       await loadPlugin(id);
     } else {

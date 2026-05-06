@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Block Timestamps plugin** (`third-party-block-timestamps`, community, disabled by default): Right-click "Show Block Info" opens a popup showing the block's creation time, last-update time, and ID
+
 ## [0.4.2] - 2026-05-06
 
 ### Added
