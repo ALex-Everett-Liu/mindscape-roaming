@@ -258,7 +258,7 @@ const plugin: RendererPlugin = {
       },
     });
 
-    console.log("[third-party-block-timestamps] renderer ready");
+    console.log("[core-block-timestamps] renderer ready");
   },
 
   async onUnload() {
