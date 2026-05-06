@@ -80,6 +80,7 @@ export function Toolbar({
                 class="search-input"
                 type="text"
                 placeholder="Search... (Ctrl+F)"
+                title="Use AND, OR, NOT, quotes for advanced search"
                 value=${searchQuery}
                 onInput=${(e: Event) =>
                   debouncedSearch((e.target as HTMLInputElement).value)}

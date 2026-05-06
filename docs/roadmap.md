@@ -149,6 +149,58 @@ Priority: keyboard nav → scroll arrows → section headers → type-to-filter.
 
 ---
 
+## Initiative 5: Advanced Search
+
+*Phase 1 complete (v0.4.4). Phase 2 planned — structured query builder overlay.*
+
+The existing toolbar search (`core-fts-search`) uses FTS5 full-text search with implicit AND-joining of tokens. Phase 1 added FTS5 boolean expression pass-through so users can type `"mode 1" NOT "model 1"` directly. Phase 2 will add a structured GUI for users who don't want to learn FTS5 syntax.
+
+### Phase 1 — FTS5 Boolean Syntax (done)
+
+- `core-fts-search` RPC handler detects boolean operators (`AND`, `OR`, `NOT`), quoted `"phrases"`, and `(grouping)` — passes through to FTS5 MATCH instead of tokenizing + AND-joining
+- Toolbar search input has a `title` hint: *Use AND, OR, NOT, quotes for advanced search*
+- Standard search with no operators continues to tokenize + AND-join with prefix `*`
+
+### Phase 2 — Structured Query Builder Overlay (planned)
+
+New community plugin `core-advanced-search` (disabled by default):
+
+| Feature | Detail |
+|---|---|
+| **Launch** | Command palette: "Advanced Search" (category: Data) |
+| **UI** | Standalone overlay (pattern: Query Nodes by Size) |
+| **Include field** | Space-separated terms → AND-joined; tokenized with prefix `*` |
+| **Exclude field** | Space-separated terms → each prefixed with NOT |
+| **Optional field** | Space-separated terms → OR-joined |
+| **Category filter** | Dropdown or free-text input |
+| **Node size range** | Min/max inputs (reuse slider + number pattern from Node Size plugin) |
+| **Preview** | Read-only display of the constructed FTS5 MATCH expression |
+| **Results** | Same display as toolbar search (breadcrumbs, highlight, click to navigate) |
+| **Backend** | Reuses existing `search` RPC — constructs FTS5 expression string and passes to `core-fts-search` handler |
+| **No new RPC** | Pure client-side expression builder → existing `api.search()` |
+
+### Dependency Order
+
+```
+Phase 1 (done) ────► Phase 2 (planned)
+   │                      │
+   └─ FTS5 pass-through    └─ Structured overlay reuses search RPC
+      (core-fts-search)       (no backend changes needed)
+```
+
+### Syntax Reference (FTS5 Boolean)
+
+| Expression | Meaning |
+|---|---|
+| `hello world` | Both tokens must match (AND) |
+| `"exact phrase"` | Exact phrase match |
+| `hello OR world` | Either token matches |
+| `"mode 1" NOT "model 1"` | Phrase "mode 1" present, "model 1" absent |
+| `(cats OR dogs) AND NOT birds` | Grouping with exclusion |
+| `prefix*` | Explicit prefix match (automatic in simple mode) |
+
+---
+
 ## References
 
 - [feature-backlog.md](feature-backlog.md) — Implementation specs for all initiatives

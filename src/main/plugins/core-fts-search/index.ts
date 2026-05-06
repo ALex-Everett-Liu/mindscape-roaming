@@ -44,9 +44,18 @@ const plugin: MainPlugin = {
     ctx.registerRpcHandler("search", (params: SearchParams) => {
       ctx.log("search called, query:", params.query, "limit:", params.limit ?? 50);
       try {
-        // Build FTS5-safe query. The unicode61 tokenizer splits on non-alphanumeric
-        // chars (hyphens, dots, etc.), but the MATCH parser treats those as operators.
-        // Wrap tokens with special chars in double quotes and skip prefix * for them.
+        // Detect FTS5 boolean expressions (AND/OR/NOT operators, quoted phrases,
+        // parentheses for grouping) — pass through raw to MATCH instead of
+        // tokenizing and AND-joining. Simple queries still get the tokenize+AND
+        // treatment with prefix * for each token.
+        function isFts5Expression(q: string): boolean {
+          return /\b(AND|OR|NOT)\b/.test(q) || /["()]/.test(q);
+        }
+
+        // Build FTS5-safe token for tokenize+AND path.
+        // The unicode61 tokenizer splits on non-alphanumeric chars (hyphens, dots,
+        // etc.), but the MATCH parser treats those as operators. Wrap tokens with
+        // special chars in double quotes and skip prefix * for them.
         function fts5Token(t: string): string {
           const hasSpecial = /[^a-zA-Z0-9\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/.test(t);
           if (!hasSpecial) return `${t}*`;
@@ -58,8 +67,16 @@ const plugin: MainPlugin = {
           return cleaned ? `"${cleaned}"` : s;
         }
 
-        const tokens = params.query.split(/\s+/).filter((t) => t.length > 0);
-        const ftsQuery = tokens.map(fts5Token).join(" AND ");
+        let ftsQuery: string;
+        let skipFallback = false;
+
+        if (isFts5Expression(params.query)) {
+          ftsQuery = params.query;
+          skipFallback = true;
+        } else {
+          const tokens = params.query.split(/\s+/).filter((t) => t.length > 0);
+          ftsQuery = tokens.map(fts5Token).join(" AND ");
+        }
         ctx.log("FTS query:", ftsQuery);
 
         let rows = db
@@ -71,7 +88,7 @@ const plugin: MainPlugin = {
           )
           .all(ftsQuery, params.limit ?? 50) as Record<string, unknown>[];
 
-        if (rows.length === 0 && tokens.length > 0) {
+        if (rows.length === 0 && !skipFallback) {
           ctx.log("prefix query returned 0, trying exact token match for:", params.query);
           rows = db
             .query(
