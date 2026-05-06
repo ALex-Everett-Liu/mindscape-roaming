@@ -57,23 +57,20 @@ function showMenu(x: number, y: number, nodeId: string): void {
 
   menuEl.innerHTML = html;
 
-  // Position
-  const menuWidth = 260;
-  const estimatedItemHeight = 32;
-  const dividerHeight = 5;
-  let totalDividerCount = 0;
-  for (const item of items) {
-    if (item.dividerBefore) totalDividerCount++;
-  }
-  const menuHeight = items.length * estimatedItemHeight + totalDividerCount * dividerHeight + 8;
-  let px = x;
-  let py = y;
+  // Append first so offsetHeight reflects actual constrained height
+  document.body.appendChild(menuEl);
+
+  // Position - clamp to viewport (max-height CSS handles overflow)
+  const menuWidth = menuEl.offsetWidth;
+  const menuHeight = menuEl.offsetHeight;
+  let px = Math.max(0, x);
+  let py = Math.max(0, y);
   if (px + menuWidth > window.innerWidth) px = window.innerWidth - menuWidth - 8;
   if (py + menuHeight > window.innerHeight) py = window.innerHeight - menuHeight - 8;
+  if (px < 0) px = 0;
+  if (py < 0) py = 0;
   menuEl.style.left = `${px}px`;
   menuEl.style.top = `${py}px`;
-
-  document.body.appendChild(menuEl);
 
   // Click actions
   menuEl.querySelectorAll(".context-menu-item").forEach((el) => {
