@@ -590,34 +590,27 @@ const plugin: RendererPlugin = {
 
     // Register context menu items (per-node actions)
     await ctx.emit("context-menu:register", {
-      id: "page-mode-toggle",
+      id: "page-mode-make",
       pluginId: manifest.id,
-      label: "Toggle Page Mode",
+      label: "Turn into Page",
       dividerBefore: true,
       execute: (nodeId: string) => {
-        const became = !isPage(nodeId);
+        if (isPage(nodeId)) return;
         store.togglePage(nodeId);
         requestAnimationFrame(() => scanAndTransform());
-        if (became) {
-          showCopyToast("Turned into page. Click [[..]] to enter.");
-        } else {
-          showCopyToast("Removed page mode. Children are visible again.");
-        }
+        showCopyToast("Turned into page. Click [[..]] to enter.");
       },
     });
 
     await ctx.emit("context-menu:register", {
       id: "page-mode-remove",
       pluginId: manifest.id,
-      label: "Remove Page Mode",
+      label: "Turn Back into Block",
       execute: (nodeId: string) => {
-        if (!isPage(nodeId)) {
-          showCopyToast("Node is not a page");
-          return;
-        }
+        if (!isPage(nodeId)) return;
         store.togglePage(nodeId);
         requestAnimationFrame(() => scanAndTransform());
-        showCopyToast("Removed page mode. Children are visible again.");
+        showCopyToast("Turned back into block. Children are visible again.");
       },
     });
 
@@ -626,7 +619,7 @@ const plugin: RendererPlugin = {
 
   async onUnload() {
     if (ctxRef) {
-      await ctxRef.emit("context-menu:unregister", { pluginId: manifest.id, id: "page-mode-toggle" });
+      await ctxRef.emit("context-menu:unregister", { pluginId: manifest.id, id: "page-mode-make" });
       await ctxRef.emit("context-menu:unregister", { pluginId: manifest.id, id: "page-mode-remove" });
       ctxRef.unregisterAllCommands();
       ctxRef = null;

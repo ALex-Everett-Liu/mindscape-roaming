@@ -11,5 +11,5 @@ export const manifest: PluginManifest = {
   runtime: "renderer",
   essential: false,
   enabledByDefault: false,
-  dependencies: ["core-node-ops"],
+  dependencies: ["core-node-ops", "core-context-menu"],
 };

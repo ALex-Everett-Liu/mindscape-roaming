@@ -136,7 +136,7 @@ All features are implemented as plugins. Enable or disable each in **Settings �
 
 ```
 src/
-├── main/                    # Bun main process (backend)
+├── main/                   # Bun main process (backend)
 │   ├── plugin-system/      # PluginManager, loadPlugins, EventBus, RPC
 │   ├── plugins/            # Built-in plugins (core-node-ops, core-fts-search, core-settings)
 │   ├── database/           # SQLite connection
