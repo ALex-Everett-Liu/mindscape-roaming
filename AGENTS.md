@@ -90,6 +90,8 @@ This project runs on **Windows PowerShell**. Multi-line `git commit` messages mu
 git commit -m "first line`n`nsecond paragraph`n  - bullet"
 ```
 
+**CRITICAL**: Always use **double quotes** (`"..."`). Single quotes (`'...'`) are literal strings and do not expand `` `n ``. The commit message must **never** contain a literal `"` character — if quoting a label or term, rephrase to avoid it (e.g., write `Turn into Page` instead of `"Turn into Page"`).
+
 The agent must always present commit commands in this PowerShell-compatible format.
 
 ## Debug Logging

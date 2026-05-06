@@ -11,7 +11,7 @@ interface Props {
 
 function debounce<A extends unknown[], R>(
   fn: (...args: A) => R,
-  ms: number
+  ms: number,
 ): (...args: A) => void {
   let timer: ReturnType<typeof setTimeout>;
   return (...args: A) => {
@@ -20,7 +20,12 @@ function debounce<A extends unknown[], R>(
   };
 }
 
-export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings }: Props) {
+export function Toolbar({
+  searchQuery,
+  searchAvailable,
+  onSearch,
+  onOpenSettings,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState(store.getState());
 
@@ -28,7 +33,7 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
   onSearchRef.current = onSearch;
 
   const debouncedSearch = useRef(
-    debounce((query: string) => onSearchRef.current(query), 200)
+    debounce((query: string) => onSearchRef.current(query), 500),
   ).current;
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
         inputRef.current?.blur();
       }
     },
-    [onSearch]
+    [onSearch],
   );
 
   const handleSave = useCallback(async () => {
@@ -86,7 +91,8 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
                 type="text"
                 placeholder="Search... (Ctrl+F)"
                 value=${searchQuery}
-                onInput=${(e: Event) => debouncedSearch((e.target as HTMLInputElement).value)}
+                onInput=${(e: Event) =>
+                  debouncedSearch((e.target as HTMLInputElement).value)}
                 onKeyDown=${handleSearchKeyDown}
               />
             `
@@ -110,7 +116,9 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
               disabled=${isBusy}
               title="Save all changes"
             >
-              ${state.saveInProgress ? "Saving..." : `Save (${state.unsavedCount})`}
+              ${state.saveInProgress
+                ? "Saving..."
+                : `Save (${state.unsavedCount})`}
             </button>
             <button
               class="btn btn-discard"
@@ -124,8 +132,11 @@ export function Toolbar({ searchQuery, searchAvailable, onSearch, onOpenSettings
         `}
         ${state.lastSaveSuccess !== null &&
         !hasUnsaved &&
-        html`<span class="save-feedback success">Saved ${state.lastSaveSuccess}!</span>`}
-        ${state.lastSaveError && !hasUnsaved &&
+        html`<span class="save-feedback success"
+          >Saved ${state.lastSaveSuccess}!</span
+        >`}
+        ${state.lastSaveError &&
+        !hasUnsaved &&
         html`<span class="save-feedback error">Save failed</span>`}
         ${onOpenSettings &&
         html`

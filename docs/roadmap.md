@@ -8,7 +8,7 @@ High-level strategic plan for Mindscape Outliner. Multiple initiatives tracked h
 
 *Target: word-processor-level reliability for backup-on-edit.*
 
-The current design relies on filesystem copying and has known edge-case failure modes.
+The current design relies on filesystem copying and has known edge-case failure modes. **This initiative will be developed on an experimental branch (`exp/save-refactor`)** to avoid destabilizing the main branch while the refactor is in progress.
 
 ### Strategic Context
 
@@ -46,26 +46,40 @@ Based on the [expert review](An%20expert%20review%20to%20SAVE_MECHANISM_SPEC.md)
 
 **Phase 3 — SQLite Backup API Refactor:**
 - Replace filesystem copies with SQLite Backup API
+  - `sqlite3_backup_init()` / `sqlite3_backup_step()` via `bun:sqlite` or native addon
+  - Online backup: source DB stays live during copy → no close/reopen needed
+  - Incremental: `backup_remaining()` / `backup_pagecount()` for progress
 - Restore WAL mode; eliminate EBUSY and plugin-unload brittleness
+  - WAL no longer conflicts because we don't close/overwrite the DB file
 - Remove plugin unload sequence during Discard
+  - Backup API copies from backup handle → live DB handle; prepared statements stay valid
+  - `reloadWithNewDatabase()` no longer needed; plugins survive Discard untouched
+- Save flow becomes: `BEGIN` → batch edits → `COMMIT` / `ROLLBACK`
+  - Discard = `ROLLBACK` (no file I/O at all)
+  - Save = `COMMIT` + delete backup file
+- Renderer: `updateContent` should await RPC result before updating local tree
+  - Currently fire-and-forget (`store.ts:207`); failed RPC leaves UI/DB inconsistent
 
 **Phase 4 — Optional Enhancements:**
 - Backup validation before restore
 - Tests for failure modes (disk full, unlink failure, crash simulation)
+- Consider `PRAGMA journal_mode = WAL2` (begin-concurrent) for future multi-tab support
 
 ### Dependency Order
 
 ```
-Phase 1 ──────────────────────────────────────────────────────────────►
-   │  (1.1–1.3 independent; can parallelize)
-   ▼
-Phase 2 ──────────────────────────────────────────────────────────────►
-   │  (2.1 may conflict with 1.3 startup cleanup — coordinate)
-   ▼
-Phase 3 ──────────────────────────────────────────────────────────────►
-   │  (Major refactor; unblocks WAL, removes plugin unload)
-   ▼
-Phase 4 (optional)
+exp/save-refactor (all phases developed here, then merged to main)
+│
+├─ Phase 1 ─────────────────────────────────────────────────────────────►
+│  │  (1.1–1.3 independent; can parallelize)
+│  ▼
+├─ Phase 2 ─────────────────────────────────────────────────────────────►
+│  │  (2.1 may conflict with 1.3 startup cleanup — coordinate)
+│  ▼
+├─ Phase 3 ─────────────────────────────────────────────────────────────►
+│  │  (Major refactor; unblocks WAL, removes plugin unload)
+│  ▼
+└─ Phase 4 (optional, can merge progressively)
 ```
 
 ---
