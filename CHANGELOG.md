@@ -11,13 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Page Mode plugin**: Right-click context menu actions "Turn into Page" and "Turn Back into Block" — per-node equivalents of the command-palette toggle/remove, acting on the right-clicked node rather than the focused/zoomed one
 - **Vim Navigation plugin** (`third-party-vim-nav`, community, disabled by default): Alt+V toggles Vim-style keyboard navigation with hint labels on every visible node
   - **Hint labels**: Home-row keys (`a`, `s`, `d`, `f`, `g`, `h`, `j`, `k`, `l`, `;`) assigned to breadcrumb items, ancestor panels, and all expanded `.outline-node` elements; multi-character labels when targets exceed 10
   - **Keyboard navigation**: Type the hint label to jump; progressive filtering dims non-matching hints; Backspace undoes a keystroke; Enter confirms a partial match when longer hints share the prefix; Escape exits
   - **Breadcrumb & panel hints**: Breadcrumbs (cyan) and ancestor panels (green) have distinct colors; jumping to either zooms into that ancestor or returns to root
   - **Status bar**: Fixed bottom bar shows the active hint buffer with a blinking cursor, total hint count, matching count, and Enter-to-confirm prompt when needed
   - **Two modes**: Alt+V for Edit mode (hint → jump + start editing), Alt+Shift+V for Focus mode (hint → zoom into node like clicking the bullet)
+
+### Changed
+
+- **Page Mode plugin**: Right-click context menu actions "Turn into Page" and "Turn Back into Block" — per-node equivalents of the command-palette toggle/remove, acting on the right-clicked node rather than the focused/zoomed one
 
 ## [0.4.1] - 2026-05-05
 
