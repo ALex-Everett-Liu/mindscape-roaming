@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Page Mode plugin**: Right-click context menu actions "Turn into Page" and "Turn Back into Block" — per-node equivalents of the command-palette toggle/remove, acting on the right-clicked node rather than the focused/zoomed one
+- Extracted shared `debounce` utility to `src/renderer/utils/debounce.ts`; unified search and typing debounce to 500ms; switched NodeEditor to stable ref pattern for callback reference
 
 ## [0.4.1] - 2026-05-05
 

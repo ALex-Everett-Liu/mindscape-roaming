@@ -1,23 +1,13 @@
 import { useRef, useCallback, useEffect, useState } from "preact/hooks";
 import { html } from "htm/preact";
 import { store } from "../state/store";
+import { debounce } from "../utils/debounce";
 
 interface Props {
   searchQuery: string;
   searchAvailable: boolean;
   onSearch: (query: string) => void;
   onOpenSettings?: () => void;
-}
-
-function debounce<A extends unknown[], R>(
-  fn: (...args: A) => R,
-  ms: number,
-): (...args: A) => void {
-  let timer: ReturnType<typeof setTimeout>;
-  return (...args: A) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  };
 }
 
 export function Toolbar({

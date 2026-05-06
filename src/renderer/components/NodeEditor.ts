@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from "preact/hooks";
 import { html } from "htm/preact";
+import { debounce } from "../utils/debounce";
 
 interface Props {
   nodeId: string;
@@ -7,17 +8,6 @@ interface Props {
   isFocused: boolean;
   onChange: (content: string) => void;
   onFocus: () => void;
-}
-
-function debounce<A extends unknown[], R>(
-  fn: (...args: A) => R,
-  ms: number
-): (...args: A) => void {
-  let timer: ReturnType<typeof setTimeout>;
-  return (...args: A) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  };
 }
 
 export function NodeEditor({
@@ -31,10 +21,12 @@ export function NodeEditor({
   const lastNodeIdRef = useRef<string>(nodeId);
   const hasInitializedRef = useRef(false);
 
-  const debouncedSave = useCallback(
-    debounce((text: string) => onChange(text), 300),
-    [onChange]
-  );
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const debouncedSave = useRef(
+    debounce((text: string) => onChangeRef.current(text), 500),
+  ).current;
 
   // Sync from props only when switching nodes or when blurred — never while focused/typing.
   // Letting Preact patch ${content} into contenteditable on every re-render duplicates text.
