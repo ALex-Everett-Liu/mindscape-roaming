@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Node Size plugin** (`core-node-size`, core, disabled by default): adds `node_size` (REAL, default 20.0, range 0.1–100.0) and `category` (TEXT) columns to `outline_nodes`
+  - **Adjust Node Size** (right-click): popup with slider + number input + Apply button to set per-node size
+  - **Query Nodes by Size** (Ctrl+P → "Query Nodes by Size"): standalone overlay to find all nodes within a size range; results show content preview + size badge, click to zoom
+  - `category` field is schema-only for now; queryable via SQL but no UI yet
+
+### Fixed
+
+- **Link creation modal** (`third-party-links`): source/target node search had inline 150ms debounce — replaced with shared `debounce` utility at 500ms, matching the project-wide standard
+
+### Changed
+
+- **Debounce convention** codified in `AGENTS.md`: all search/input debounce MUST use `src/renderer/utils/debounce.ts` at 500ms; inline `setTimeout`/`clearTimeout` patterns are forbidden
+- **`outline_nodes` schema**: added `node_size` REAL (default 20.0) and `category` TEXT (default '') columns via ALTER TABLE migration
+- **`UpdateNodeParams`**: added optional `node_size?` and `category?` fields
+- **`OutlineNode` type**: added `node_size: number` and `category: string` fields
+- **Repository layer** (`core-node-ops` + main): `mapRow`, `stmtInsert`, `updateNodeSize`, `updateNodeCategory`, `queryNodesBySize` methods added to both repositories
+
 ## [0.4.2] - 2026-05-06
 
 ### Added

@@ -13,6 +13,7 @@ import type {
   DeleteNodeParams,
   GetSubtreeParams,
   SearchParams,
+  QueryNodesBySizeParams,
   RpcResult,
 } from "./types";
 
@@ -40,6 +41,10 @@ export type OutlinerRPCType = {
       getStats: {
         params: Record<string, never>;
         response: RpcResult<{ nodeCount: number }>;
+      };
+      queryNodesBySize: {
+        params: QueryNodesBySizeParams;
+        response: RpcResult<OutlineNode[]>;
       };
       createNode: {
         params: CreateNodeParams;

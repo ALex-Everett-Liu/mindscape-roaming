@@ -94,6 +94,28 @@ git commit -m "first line`n`nsecond paragraph`n  - bullet"
 
 The agent must always present commit commands in this PowerShell-compatible format.
 
+## Debounce Standard
+
+**All search/input debounce MUST use the shared utility at `src/renderer/utils/debounce.ts` with a uniform 500 ms delay.** Inline `setTimeout` / `clearTimeout` patterns are forbidden.
+
+```typescript
+import { debounce } from "../../utils/debounce";
+
+const doSearch = debounce(async (q: string) => {
+  // API call, DOM updates, etc.
+}, 500);
+
+inputEl.addEventListener("input", () => {
+  const q = inputEl.value.trim();
+  if (!q) { /* clear results immediately */ return; }
+  doSearch(q);
+});
+```
+
+- **No exceptions.** Every text-input search field in the entire project (toolbar, modals, link panels, command palette, etc.) must go through this utility at 500 ms.
+- **Immediate clear on empty** is still permitted before calling the debounced function, so blanking the field feels instant.
+- If a new debounce utility is ever introduced (e.g. `useDebounce`), it must also enforce 500 ms by default.
+
 ## Debug Logging
 
 - The agent cannot read `console.log` output from the renderer's DevTools — every log line must be manually relayed by the user.

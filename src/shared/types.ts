@@ -11,6 +11,8 @@ export interface OutlineNode {
   position: number;
   is_expanded: boolean;
   is_page: boolean;
+  node_size: number;
+  category: string;
   created_at: number;
   updated_at: number;
 }
@@ -39,6 +41,14 @@ export interface UpdateNodeParams {
   content?: string;
   is_expanded?: boolean;
   is_page?: boolean;
+  node_size?: number;
+  category?: string;
+}
+
+export interface QueryNodesBySizeParams {
+  min_size?: number;
+  max_size?: number;
+  limit?: number;
 }
 
 export interface MoveNodeParams {

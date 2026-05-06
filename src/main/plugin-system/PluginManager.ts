@@ -13,6 +13,7 @@ import type {
   DeleteNodeParams,
   GetSubtreeParams,
   SearchParams,
+  QueryNodesBySizeParams,
 } from "../rpc/types";
 
 export class PluginManager {
@@ -169,6 +170,10 @@ export class PluginManager {
         // Image Viewer (core-image-viewer plugin)
         readImageFile: (params: { path: string }) =>
           wrap("readImageFile", r.get("readImageFile"))(params),
+
+        // Node Size query (core-node-size plugin)
+        queryNodesBySize: (params: QueryNodesBySizeParams) =>
+          wrap("queryNodesBySize", r.get("queryNodesBySize"))(params),
 
         // Plugin management (for Settings UI)
         listPlugins: () => Promise.resolve({ success: true, data: this.getPluginList() }),

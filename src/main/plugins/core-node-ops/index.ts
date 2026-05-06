@@ -34,6 +34,20 @@ const plugin: MainPlugin = {
       /* column already exists */
     }
 
+    // Ensure node_size column exists
+    try {
+      db.run("ALTER TABLE outline_nodes ADD COLUMN node_size REAL NOT NULL DEFAULT 20.0");
+    } catch {
+      /* column already exists */
+    }
+
+    // Ensure category column exists
+    try {
+      db.run("ALTER TABLE outline_nodes ADD COLUMN category TEXT NOT NULL DEFAULT ''");
+    } catch {
+      /* column already exists */
+    }
+
     // Migrate from outliner_nodes if it exists (legacy/typo table name)
     try {
       const hasOutliner = db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='outliner_nodes'").get();

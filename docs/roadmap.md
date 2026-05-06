@@ -132,6 +132,23 @@ CSS variables use **omitted-primary** convention across 5 themes (`native`, `lig
 
 ---
 
+## Initiative 4: Context Menu UX at Scale
+
+*Defer until 30+ right-click actions exist. Current ~7 items — no urgency.*
+
+The `core-context-menu` plugin mechanically handles overflow (`max-height` + `overflow-y: auto`) but lacks discoverability for long menus:
+
+| Gap | Symptom at 30+ items | Fix |
+|-----|----------------------|-----|
+| No scroll indicators | User doesn't know items exist off-screen | ▲/▼ arrow hints on `scroll` event |
+| No keyboard navigation | Must mouse-hover and click each item | ↑↓ to focus, Enter to execute |
+| Flat list, no grouping | Hard to scan | Section headers (e.g. "Page", "Links") |
+| No search/filter | Must visually scan all items | Type-to-filter input at menu top |
+
+Priority: keyboard nav → scroll arrows → section headers → type-to-filter.
+
+---
+
 ## References
 
 - [feature-backlog.md](feature-backlog.md) — Implementation specs for all initiatives

@@ -74,6 +74,8 @@ export class OutlineService {
       if (params.content !== undefined) node = this.repo.updateContent(params.id, params.content);
       if (params.is_expanded !== undefined) node = this.repo.updateExpanded(params.id, params.is_expanded);
       if (params.is_page !== undefined) node = this.repo.updatePage(params.id, params.is_page);
+      if (params.node_size !== undefined) node = this.repo.updateNodeSize(params.id, params.node_size);
+      if (params.category !== undefined) node = this.repo.updateNodeCategory(params.id, params.category);
       if (!node) node = this.repo.getById(params.id);
       return { success: true, data: node! };
     } catch (e) {

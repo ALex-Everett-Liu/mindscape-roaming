@@ -11,6 +11,9 @@ export class NodeRepository {
   private stmtUpdateContent!: Statement;
   private stmtUpdateExpanded!: Statement;
   private stmtUpdatePage!: Statement;
+  private stmtUpdateNodeSize!: Statement;
+  private stmtUpdateNodeCategory!: Statement;
+  private stmtQueryNodesBySize!: Statement;
   private stmtUpdatePosition!: Statement;
   private stmtUpdateParent!: Statement;
   private stmtDelete!: Statement;
@@ -31,8 +34,8 @@ export class NodeRepository {
       "SELECT * FROM outline_nodes WHERE parent_id = ? AND is_deleted = 0 ORDER BY position ASC"
     );
     this.stmtInsert = this.db.prepare(`
-      INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, is_page, created_at, updated_at, is_deleted)
-      VALUES ($id, $content, $parent_id, $position, $is_expanded, $is_page, $created_at, $updated_at, 0)
+      INSERT INTO outline_nodes (id, content, parent_id, position, is_expanded, is_page, node_size, category, created_at, updated_at, is_deleted)
+      VALUES ($id, $content, $parent_id, $position, $is_expanded, $is_page, $node_size, $category, $created_at, $updated_at, 0)
     `);
     this.stmtUpdateContent = this.db.prepare(
       "UPDATE outline_nodes SET content = ?, updated_at = ? WHERE id = ?"
@@ -42,6 +45,20 @@ export class NodeRepository {
     );
     this.stmtUpdatePage = this.db.prepare(
       "UPDATE outline_nodes SET is_page = ?, updated_at = ? WHERE id = ?"
+    );
+    this.stmtUpdateNodeSize = this.db.prepare(
+      "UPDATE outline_nodes SET node_size = ?, updated_at = ? WHERE id = ?"
+    );
+    this.stmtUpdateNodeCategory = this.db.prepare(
+      "UPDATE outline_nodes SET category = ?, updated_at = ? WHERE id = ?"
+    );
+    this.stmtQueryNodesBySize = this.db.prepare(
+      `SELECT * FROM outline_nodes
+       WHERE is_deleted = 0
+       AND node_size >= ?
+       AND node_size <= ?
+       ORDER BY node_size DESC
+       LIMIT ?`
     );
     this.stmtUpdatePosition = this.db.prepare(
       "UPDATE outline_nodes SET position = ?, updated_at = ? WHERE id = ?"
@@ -74,6 +91,8 @@ export class NodeRepository {
       position: row.position as number,
       is_expanded: Boolean(row.is_expanded),
       is_page: Boolean(row.is_page),
+      node_size: (row.node_size as number) ?? 20.0,
+      category: (row.category as string) ?? "",
       created_at: row.created_at as number,
       updated_at: row.updated_at as number,
     };
@@ -138,6 +157,8 @@ export class NodeRepository {
       $position: position,
       $is_expanded: 1,
       $is_page: 0,
+      $node_size: 20.0,
+      $category: "",
       $created_at: now,
       $updated_at: now,
     });
@@ -163,6 +184,22 @@ export class NodeRepository {
   updatePage(id: string, isPage: boolean): OutlineNode {
     this.stmtUpdatePage.run(isPage ? 1 : 0, Date.now(), id);
     return this.getById(id)!;
+  }
+
+  updateNodeSize(id: string, size: number): OutlineNode {
+    this.stmtUpdateNodeSize.run(size, Date.now(), id);
+    return this.getById(id)!;
+  }
+
+  updateNodeCategory(id: string, category: string): OutlineNode {
+    this.stmtUpdateNodeCategory.run(category, Date.now(), id);
+    return this.getById(id)!;
+  }
+
+  queryNodesBySize(minSize: number, maxSize: number, limit: number): OutlineNode[] {
+    return (this.stmtQueryNodesBySize.all(minSize, maxSize, limit) as Record<string, unknown>[]).map(
+      this.mapRow.bind(this)
+    );
   }
 
   move(id: string, newParentId: string | null, newPosition: number): OutlineNode {

@@ -4,6 +4,7 @@ import type { LinkWithNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
+import { debounce } from "../../utils/debounce";
 
 const CSS = `
 /* ─── Link badges ─── */
@@ -543,10 +544,24 @@ async function openCreateModal(sourceId: string): Promise<void> {
 
   let selectedTargetId: string | null = null;
   let selectedIndex = -1;
-  let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debouncedTargetSearch = debounce(async (q: string) => {
+    const res = await api.search({ query: q, limit: 8 });
+    if (!res.success || !res.data) return;
+    const nodes = res.data;
+    selectedIndex = -1;
+    selectedTargetId = null;
+    createBtn.disabled = true;
+    resultsEl.innerHTML = nodes
+      .map(
+        (n, idx) =>
+          `<div class="link-target-result" data-index="${idx}" data-id="${n.id}">${escapeHtml(n.content || "(empty)")}</div>`
+      )
+      .join("");
+    resultsEl.style.display = nodes.length > 0 ? "block" : "none";
+  }, 500);
 
   targetInput.addEventListener("input", () => {
-    if (searchTimeout) clearTimeout(searchTimeout);
     const q = targetInput.value.trim();
     if (!q) {
       resultsEl.style.display = "none";
@@ -556,21 +571,7 @@ async function openCreateModal(sourceId: string): Promise<void> {
       createBtn.disabled = true;
       return;
     }
-    searchTimeout = setTimeout(async () => {
-      const res = await api.search({ query: q, limit: 8 });
-      if (!res.success || !res.data) return;
-      const nodes = res.data;
-      selectedIndex = -1;
-      selectedTargetId = null;
-      createBtn.disabled = true;
-      resultsEl.innerHTML = nodes
-        .map(
-          (n, idx) =>
-            `<div class="link-target-result" data-index="${idx}" data-id="${n.id}">${escapeHtml(n.content || "(empty)")}</div>`
-        )
-        .join("");
-      resultsEl.style.display = nodes.length > 0 ? "block" : "none";
-    }, 150);
+    debouncedTargetSearch(q);
   });
 
   resultsEl.addEventListener("mousedown", (e) => {
@@ -822,10 +823,24 @@ async function openCreateModalWithTarget(targetId: string): Promise<void> {
 
   let selectedSourceId: string | null = null;
   let selectedIndex = -1;
-  let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debouncedSourceSearch = debounce(async (q: string) => {
+    const res = await api.search({ query: q, limit: 8 });
+    if (!res.success || !res.data) return;
+    const nodes = res.data;
+    selectedIndex = -1;
+    selectedSourceId = null;
+    createBtn.disabled = true;
+    resultsEl.innerHTML = nodes
+      .map(
+        (n, idx) =>
+          `<div class="link-target-result" data-index="${idx}" data-id="${n.id}">${escapeHtml(n.content || "(empty)")}</div>`
+      )
+      .join("");
+    resultsEl.style.display = nodes.length > 0 ? "block" : "none";
+  }, 500);
 
   sourceInput.addEventListener("input", () => {
-    if (searchTimeout) clearTimeout(searchTimeout);
     const q = sourceInput.value.trim();
     if (!q) {
       resultsEl.style.display = "none";
@@ -835,21 +850,7 @@ async function openCreateModalWithTarget(targetId: string): Promise<void> {
       createBtn.disabled = true;
       return;
     }
-    searchTimeout = setTimeout(async () => {
-      const res = await api.search({ query: q, limit: 8 });
-      if (!res.success || !res.data) return;
-      const nodes = res.data;
-      selectedIndex = -1;
-      selectedSourceId = null;
-      createBtn.disabled = true;
-      resultsEl.innerHTML = nodes
-        .map(
-          (n, idx) =>
-            `<div class="link-target-result" data-index="${idx}" data-id="${n.id}">${escapeHtml(n.content || "(empty)")}</div>`
-        )
-        .join("");
-      resultsEl.style.display = nodes.length > 0 ? "block" : "none";
-    }, 150);
+    debouncedSourceSearch(q);
   });
 
   resultsEl.addEventListener("mousedown", (e) => {

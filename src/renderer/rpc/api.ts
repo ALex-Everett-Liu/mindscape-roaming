@@ -24,6 +24,7 @@ import type {
   IsBookmarkedParams,
   IncrementBookmarkClickParams,
   ReadImageFileParams,
+  QueryNodesBySizeParams,
 } from "../../shared/types";
 
 type OutlinerRpcRequest = {
@@ -61,6 +62,7 @@ type OutlinerRpcRequest = {
   isBookmarked: (params: IsBookmarkedParams) => Promise<RpcResult<boolean>>;
   incrementBookmarkClick: (params: IncrementBookmarkClickParams) => Promise<RpcResult<void>>;
   readImageFile: (params: ReadImageFileParams) => Promise<RpcResult<string>>;
+  queryNodesBySize: (params: QueryNodesBySizeParams) => Promise<RpcResult<OutlineNode[]>>;
 };
 
 let rpcRequest: OutlinerRpcRequest | null = null;
@@ -112,4 +114,5 @@ export const api = {
   isBookmarked: (params: IsBookmarkedParams) => getRpc().isBookmarked(params),
   incrementBookmarkClick: (params: IncrementBookmarkClickParams) => getRpc().incrementBookmarkClick(params),
   readImageFile: (params: ReadImageFileParams) => getRpc().readImageFile(params),
+  queryNodesBySize: (params: QueryNodesBySizeParams) => getRpc().queryNodesBySize(params),
 };
