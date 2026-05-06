@@ -13,10 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **FTS5 search** (`core-fts-search`): toolbar search now detects boolean expressions (`AND`, `OR`, `NOT`, `"phrases"`, `(grouping)`) and passes them through to FTS5 MATCH — enables powerful queries like `"mode 1" NOT "model 1"`; simple queries still use the tokenize + AND-join path with automatic prefix `*`
 - **Toolbar search input**: added `title` attribute with FTS5 syntax hint (*Use AND, OR, NOT, quotes for advanced search*)
+- **README**: added Block Timestamps and Node Size plugins to Content Features table; added FTS5 boolean search tips to Features section
 
 ### Added
 
 - **Advanced Search initiative** documented in `docs/roadmap.md` (Initiative 5): Phase 1 (FTS5 boolean pass-through) done; Phase 2 (structured query builder overlay) planned
+
+### Fixed
+
+- **FTS5 search** (`core-fts-search`): simple queries now supplement FTS5 prefix results with a `LIKE %query%` fallback for substring matches that FTS5 tokenization would miss (e.g., searching "usage" now finds "ccusage"); FTS5 ranked results appear first, LIKE results fill remaining slots; boolean expressions skip this supplement
+- **FTS5 search**: row mapping now includes `node_size` and `category` fields (previously omitted, masked by `as` cast)
 
 ## [0.4.3] - 2026-05-06
 

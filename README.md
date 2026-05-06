@@ -36,7 +36,7 @@ bun run build
 - **Hierarchical outlines** — Create nested bullet points with unlimited depth
 - **Zoom** — Click a bullet with children to zoom into that section
 - **Breadcrumb navigation** — Navigate back up the hierarchy
-- **Search** — Full-text search across all nodes (FTS5)
+- **Search** — Full-text search across all nodes (FTS5). Supports boolean operators: `AND`, `OR`, `NOT`, `"phrases"`, `(grouping)`. Example: `"mode 1" NOT "model 1"`
 - **Vim-style keyboard navigation** — Jump to any node without the mouse. [User Guide →](docs/vim-nav-user-guide.md)
 - **Drag & drop** — Reorder and nest nodes
 - **SQLite storage** — Data saved in stable app data dir (e.g. `%LOCALAPPDATA%\sh.blackboard.outliner\dev\` on Windows). Override with `ELECTROBUN_APP_DATA` for dev.
@@ -118,6 +118,8 @@ All features are implemented as plugins. Enable or disable each in **Settings �
 | **Block References** | community | on | `((block-id))` syntax for cross-references with hover preview |
 | **Node Links** | community | off | Directed, weighted links between nodes with a sidebar manager |
 | **Page Mode** | community | off | `[[wikilink]]` page system — turn blocks into pages |
+| **Block Timestamps** | community | off | Right-click → "Show Block Info" to view content preview, creation/update timestamps, and block ID |
+| **Node Size** | community | off | Per-node size adjustment (slider + number input, right-click → "Adjust Node Size") and size range query (Ctrl+P → "Query Nodes by Size") |
 
 ### Media
 

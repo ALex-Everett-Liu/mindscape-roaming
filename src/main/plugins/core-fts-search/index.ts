@@ -101,6 +101,28 @@ const plugin: MainPlugin = {
           ctx.log("exact match returned", rows.length, "rows");
         }
 
+        // Hybrid search: supplement FTS5 with LIKE for substring matches
+        // that prefix matching would miss (e.g., "usage" matching "ccusage").
+        // Only for simple queries — boolean expressions skip this.
+        if (!skipFallback) {
+          const limit = params.limit ?? 50;
+          const room = limit - rows.length;
+          if (room > 0) {
+            const existingIds = new Set(rows.map((r) => r.id as string));
+            const likeQuery = `%${params.query}%`;
+            const likeRows = db
+              .query(
+                `SELECT * FROM outline_nodes WHERE is_deleted = 0 AND content LIKE ? LIMIT ?`
+              )
+              .all(likeQuery, room) as Record<string, unknown>[];
+            const deduped = likeRows.filter((r) => !existingIds.has(r.id as string));
+            if (deduped.length > 0) {
+              ctx.log("LIKE supplement added", deduped.length, "rows, total:", rows.length + deduped.length);
+            }
+            rows = [...rows, ...deduped];
+          }
+        }
+
         // Collect parent ids for breadcrumb lookup
         const parentIds = new Set<string>();
         for (const r of rows) {
@@ -160,6 +182,8 @@ const plugin: MainPlugin = {
             position: r.position,
             is_expanded: Boolean(r.is_expanded),
             is_page: Boolean(r.is_page),
+            node_size: (r.node_size as number) ?? 20.0,
+            category: (r.category as string) ?? "",
             created_at: r.created_at,
             updated_at: r.updated_at,
             breadcrumb,
