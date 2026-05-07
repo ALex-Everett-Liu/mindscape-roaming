@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Move Node plugin** (`core-move-node`, community, disabled by default): move a node to any parent via search-based target selection; accessible from command palette (Edit → "Move Node to Parent") and context menu ("Move to...")
+  - Overlay with search-as-you-type (debounced 500ms) for target parent node; results show content + breadcrumb
+  - Keyboard nav (↑↓/Enter) to select target; Move/Cancel buttons; Escape/click-outside to dismiss
+  - Reuses existing `action:moveNodeTo` path (same as drag-drop) for cycle prevention and reparent logic
+
 ## [0.4.4] - 2026-05-06
 
 ### Changed

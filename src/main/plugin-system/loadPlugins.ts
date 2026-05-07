@@ -20,6 +20,7 @@ import thirdPartyImageGallery from "../plugins/third-party-image-gallery/index";
 import thirdPartyVimNav from "../plugins/third-party-vim-nav/index";
 import coreBlockTimestamps from "../plugins/core-block-timestamps/index";
 import coreNodeSize from "../plugins/core-node-size/index";
+import coreMoveNode from "../plugins/core-move-node/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "core-node-ops": coreNodeOps,
@@ -41,6 +42,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "third-party-vim-nav": thirdPartyVimNav,
   "core-block-timestamps": coreBlockTimestamps,
   "core-node-size": coreNodeSize,
+  "core-move-node": coreMoveNode,
 };
 
 /** Load all built-in plugins. Users enable/disable each in Settings. */
