@@ -7,7 +7,7 @@ export const manifest: PluginManifest = {
   description:
     "Move a node to any parent by searching for the target via command palette or context menu.",
   author: "Outliner Team",
-  type: "community",
+  type: "core",
   runtime: "main",
   essential: false,
   enabledByDefault: false,

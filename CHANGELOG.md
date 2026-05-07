@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **Move Node plugin** (`core-move-node`, community, disabled by default): move a node to any parent via search-based target selection; accessible from command palette (Edit → "Move Node to Parent") and context menu ("Move to...")
-  - Overlay with search-as-you-type (debounced 500ms) for target parent node; results show content + breadcrumb
-  - Keyboard nav (↑↓/Enter) to select target; Move/Cancel buttons; Escape/click-outside to dismiss
-  - Reuses existing `action:moveNodeTo` path (same as drag-drop) for cycle prevention and reparent logic
-
 ## [0.4.4] - 2026-05-06
 
 ### Changed
@@ -21,10 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FTS5 search** (`core-fts-search`): toolbar search now detects boolean expressions (`AND`, `OR`, `NOT`, `"phrases"`, `(grouping)`) and passes them through to FTS5 MATCH — enables powerful queries like `"mode 1" NOT "model 1"`; simple queries still use the tokenize + AND-join path with automatic prefix `*`
 - **Toolbar search input**: added `title` attribute with FTS5 syntax hint (*Use AND, OR, NOT, quotes for advanced search*)
 - **README**: added Block Timestamps and Node Size plugins to Content Features table; added FTS5 boolean search tips to Features section
+- **Node Size plugin** renamed from `core-node-size` to `third-party-node-size` (community plugin, not core)
 
 ### Added
 
 - **Advanced Search initiative** documented in `docs/roadmap.md` (Initiative 5): Phase 1 (FTS5 boolean pass-through) done; Phase 2 (structured query builder overlay) planned
+- **Move Node plugin** (`core-move-node`, core, disabled by default): move a node to any parent via search-based target selection; accessible from command palette (Edit → "Move Node to Parent") and context menu ("Move to...")
+  - Overlay with search-as-you-type (debounced 500ms) for target parent node; results show content + breadcrumb
+  - Keyboard nav (↑↓/Enter) to select target; Move/Cancel buttons; Escape/click-outside to dismiss
+  - Reuses existing `action:moveNodeTo` path (same as drag-drop) for cycle prevention and reparent logic
 
 ### Fixed
 
@@ -35,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Node Size plugin** (`core-node-size`, community, disabled by default): adds `node_size` (REAL, default 20.0, range 0.1–100.0) and `category` (TEXT) columns to `outline_nodes`
+- **Node Size plugin** (`third-party-node-size`, community, disabled by default): adds `node_size` (REAL, default 20.0, range 0.1–100.0) and `category` (TEXT) columns to `outline_nodes`
   - **Adjust Node Size** (right-click): popup with slider + number input + Apply button to set per-node size
   - **Query Nodes by Size** (Ctrl+P → "Query Nodes by Size"): standalone overlay to find all nodes within a size range; results show content preview + size badge, click to zoom
   - `category` field is schema-only for now; queryable via SQL but no UI yet

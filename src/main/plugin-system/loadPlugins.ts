@@ -19,7 +19,7 @@ import thirdPartyLinks from "../plugins/third-party-links/index";
 import thirdPartyImageGallery from "../plugins/third-party-image-gallery/index";
 import thirdPartyVimNav from "../plugins/third-party-vim-nav/index";
 import coreBlockTimestamps from "../plugins/core-block-timestamps/index";
-import coreNodeSize from "../plugins/core-node-size/index";
+import thirdPartyNodeSize from "../plugins/third-party-node-size/index";
 import coreMoveNode from "../plugins/core-move-node/index";
 
 const MAIN_PLUGINS: Record<string, MainPlugin> = {
@@ -41,7 +41,7 @@ const MAIN_PLUGINS: Record<string, MainPlugin> = {
   "third-party-image-gallery": thirdPartyImageGallery,
   "third-party-vim-nav": thirdPartyVimNav,
   "core-block-timestamps": coreBlockTimestamps,
-  "core-node-size": coreNodeSize,
+  "third-party-node-size": thirdPartyNodeSize,
   "core-move-node": coreMoveNode,
 };
 

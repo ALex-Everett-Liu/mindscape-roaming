@@ -613,7 +613,7 @@ const plugin: RendererPlugin = {
       execute: () => openQueryOverlay(),
     });
 
-    console.log("[core-node-size] renderer ready");
+    console.log("[third-party-node-size] renderer ready");
   },
 
   async onUnload() {

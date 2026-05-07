@@ -1,7 +1,7 @@
 import type { PluginManifest } from "../../../shared/plugin-types";
 
 export const manifest: PluginManifest = {
-  id: "core-node-size",
+  id: "third-party-node-size",
   name: "Node Size",
   version: "1.0.0",
   description:

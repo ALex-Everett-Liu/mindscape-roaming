@@ -171,7 +171,7 @@ export class PluginManager {
         readImageFile: (params: { path: string }) =>
           wrap("readImageFile", r.get("readImageFile"))(params),
 
-        // Node Size query (core-node-size plugin)
+        // Node Size query (third-party-node-size plugin)
         queryNodesBySize: (params: QueryNodesBySizeParams) =>
           wrap("queryNodesBySize", r.get("queryNodesBySize"))(params),
 
