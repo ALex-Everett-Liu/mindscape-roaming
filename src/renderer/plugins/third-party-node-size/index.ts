@@ -442,6 +442,7 @@ function openSizePopup(node: OutlineNode, x: number, y: number): void {
     if (isNaN(newSize) || newSize < 0.1 || newSize > 100.0) return;
     const clamped = clampSize(newSize);
     await api.updateNode({ id: node.id, node_size: clamped });
+    store.markModified(node.id);
     destroySizePopup();
   });
 

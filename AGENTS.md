@@ -116,6 +116,48 @@ inputEl.addEventListener("input", () => {
 - **Immediate clear on empty** is still permitted before calling the debounced function, so blanking the field feels instant.
 - If a new debounce utility is ever introduced (e.g. `useDebounce`), it must also enforce 500 ms by default.
 
+## Save/Discard Mechanism
+
+The app uses a backup-based save/discard flow. All database-modifying operations MUST participate in two parts:
+
+### 1. `ensureBackup()` Coverage
+
+Any RPC that writes to the SQLite database must be listed in the `mutatingOps` array in `src/main/index.ts`. Before executing, `ensureBackup()` copies the database to a `.backup` file (if one doesn't already exist). Without this, changes cannot be discarded.
+
+**When adding a new mutating RPC:**
+- Add its handler name to the `mutatingOps` array
+- Read-only RPCs (`getBookmarks`, `getNodeLinks`, `getLinkCounts`, `isBookmarked`, `search`, etc.) should NOT be listed
+
+### 2. Unsaved State Tracking
+
+The renderer must be notified that changes are pending so the toolbar shows Save/Discard buttons.
+
+**For tree operations** (createNode, updateContent, toggleExpanded, togglePage, indentNode, outdentNode, deleteNode): the store handles tracking automatically via `markModified()`.
+
+**For non-tree operations** (bookmarks, links, node size, plugin state): call `store.setNonTreeUnsaved("source-id", true)` after the mutating API call succeeds:
+
+```typescript
+const res = await api.pinBookmark({ nodeId });
+if (res.success) {
+  store.setNonTreeUnsaved("bookmarks", true);
+}
+```
+
+**For operations that call `api.updateNode()` directly** (bypassing `store.updateContent()`): call `store.markModified(nodeId)` after the call.
+
+The `source-id` string identifies the change category (e.g., `"bookmarks"`, `"links"`, `"nodeSize"`) and persists until Save or Discard clears all sources.
+
+### How It Works
+
+```
+Operation → ensureBackup() → DB write → store.setNonTreeUnsaved("source", true) / markModified(id)
+  ↓
+Toolbar shows Save (N) / Discard
+  ↓
+Save  → commitSave()   → deletes .backup file → clears all unsaved state
+Discard → restoreFromBackup() → restores .backup → clears all unsaved state
+```
+
 ## Debug Logging
 
 - The agent cannot read `console.log` output from the renderer's DevTools — every log line must be manually relayed by the user.

@@ -64,7 +64,7 @@ export function Toolbar({
     setTimeout(() => store.clearSaveFeedback(), 3000);
   }, []);
 
-  const hasUnsaved = state.unsavedCount > 0;
+  const hasUnsaved = state.unsavedCount > 0 || state.nonTreeUnsaved;
   const isBusy = state.saveInProgress || state.discardInProgress;
 
   return html`
@@ -109,7 +109,9 @@ export function Toolbar({
             >
               ${state.saveInProgress
                 ? "Saving..."
-                : `Save (${state.unsavedCount})`}
+                : state.unsavedCount > 0
+                  ? `Save (${state.unsavedCount})`
+                  : "Save"}
             </button>
             <button
               class="btn btn-discard"

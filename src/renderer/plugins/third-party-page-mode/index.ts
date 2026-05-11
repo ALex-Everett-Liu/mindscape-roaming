@@ -505,6 +505,9 @@ async function startEditingZoomedNode(): Promise<void> {
   const currentText = activeEl.textContent || "";
   const originalHTML = activeEl.innerHTML;
 
+  const container = document.createElement("span");
+  container.style.cssText = "display: inline-flex; align-items: center; gap: 4px;";
+
   const input = document.createElement("input");
   input.type = "text";
   input.className = "breadcrumb-edit-input";
@@ -518,31 +521,80 @@ async function startEditingZoomedNode(): Promise<void> {
     border-radius: 4px;
     padding: 2px 6px;
     outline: none;
-    width: 200px;
+    width: 180px;
   `;
 
+  const btnStyle = `
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border, #333);
+    cursor: pointer;
+    font-family: inherit;
+    background: var(--bg, #1a1a2e);
+    color: var(--text, #e0e0e0);
+  `;
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save";
+  saveBtn.style.cssText = btnStyle;
+  saveBtn.title = "Save (Enter)";
+
+  const discardBtn = document.createElement("button");
+  discardBtn.textContent = "Discard";
+  discardBtn.style.cssText = btnStyle;
+  discardBtn.title = "Discard (Escape)";
+
+  container.appendChild(input);
+  container.appendChild(saveBtn);
+  container.appendChild(discardBtn);
+
   activeEl.textContent = "";
-  activeEl.appendChild(input);
+  activeEl.appendChild(container);
   input.focus();
   input.select();
 
-  const commit = async () => {
+  const discard = () => {
+    activeEl.innerHTML = originalHTML;
+  };
+
+  const save = async () => {
     const newText = input.value.trim();
     activeEl.innerHTML = originalHTML;
     if (newText && newText !== currentText) {
       await api.updateNode({ id: zoomedId, content: newText });
+      store.markModified(zoomedId);
+      showCopyToast("Content updated");
     }
   };
 
-  input.addEventListener("blur", () => void commit());
+  saveBtn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    void save();
+  });
+
+  discardBtn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    discard();
+  });
+
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      void commit();
+      void save();
     } else if (e.key === "Escape") {
-      input.value = currentText;
-      void commit();
+      e.preventDefault();
+      discard();
     }
+  });
+
+  input.addEventListener("blur", () => {
+    // Delay to let button clicks fire first
+    setTimeout(() => {
+      if (activeEl.querySelector(".breadcrumb-edit-input")) {
+        discard();
+      }
+    }, 150);
   });
 }
 

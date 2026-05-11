@@ -22,7 +22,12 @@ let userConfirmedQuitDespiteUnsaved = false;
 
 // ─── Build RPC from Plugins ───────────────────────────
 const baseHandlers = pluginManager.buildRpcHandlers();
-const mutatingOps = ["createNode", "updateNode", "moveNode", "indentNode", "outdentNode", "deleteNode"];
+const mutatingOps = [
+  "createNode", "updateNode", "moveNode", "indentNode", "outdentNode", "deleteNode",
+  "pinBookmark", "unpinBookmark", "incrementBookmarkClick",
+  "createLink", "deleteLink", "updateLink",
+  "enablePlugin", "disablePlugin", "importPluginStates",
+];
 
 const wrapMutating = (name: string, fn: (params: unknown) => Promise<unknown>) => {
   return async (params: unknown) => {

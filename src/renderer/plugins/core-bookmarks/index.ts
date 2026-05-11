@@ -78,6 +78,7 @@ async function refreshBookmarks(): Promise<void> {
       if (!nodeId) return;
       await api.unpinBookmark({ nodeId });
       bookmarkNodeIds.delete(nodeId);
+      store.setNonTreeUnsaved("bookmarks", true);
       await refreshBookmarks();
     });
   });
@@ -87,9 +88,11 @@ async function togglePin(nodeId: string): Promise<void> {
   if (bookmarkNodeIds.has(nodeId)) {
     await api.unpinBookmark({ nodeId });
     bookmarkNodeIds.delete(nodeId);
+    store.setNonTreeUnsaved("bookmarks", true);
   } else {
     await api.pinBookmark({ nodeId });
     bookmarkNodeIds.add(nodeId);
+    store.setNonTreeUnsaved("bookmarks", true);
   }
   await refreshBookmarks();
 }
@@ -311,6 +314,7 @@ const plugin: RendererPlugin = {
         if (!nodeId) return;
         await api.pinBookmark({ nodeId });
         bookmarkNodeIds.add(nodeId);
+        store.setNonTreeUnsaved("bookmarks", true);
         await refreshBookmarks();
         await ctx.emit("sidebar:show-tab", { tabId: "bookmarks" });
       },
@@ -325,6 +329,7 @@ const plugin: RendererPlugin = {
         if (!nodeId) return;
         await api.unpinBookmark({ nodeId });
         bookmarkNodeIds.delete(nodeId);
+        store.setNonTreeUnsaved("bookmarks", true);
         await refreshBookmarks();
       },
     });
@@ -352,6 +357,7 @@ const plugin: RendererPlugin = {
       execute: async (nodeId: string) => {
         await api.pinBookmark({ nodeId });
         bookmarkNodeIds.add(nodeId);
+        store.setNonTreeUnsaved("bookmarks", true);
         await refreshBookmarks();
       },
     });
@@ -363,6 +369,7 @@ const plugin: RendererPlugin = {
       execute: async (nodeId: string) => {
         await api.unpinBookmark({ nodeId });
         bookmarkNodeIds.delete(nodeId);
+        store.setNonTreeUnsaved("bookmarks", true);
         await refreshBookmarks();
       },
     });

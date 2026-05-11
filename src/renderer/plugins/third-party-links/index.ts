@@ -451,6 +451,7 @@ function attachSidebarEvents(container: HTMLElement): void {
 
       const res = await api.deleteLink(linkId);
       if (res.success) {
+        store.setNonTreeUnsaved("links", true);
         showCopyToast("Link deleted");
         if (linksTabPanel) void refreshLinksTab(linksTabPanel);
       } else {
@@ -626,6 +627,7 @@ async function openCreateModal(sourceId: string): Promise<void> {
 
     if (res.success) {
       destroyModal();
+      store.setNonTreeUnsaved("links", true);
       showCopyToast("Link created");
       void refreshLinkCounts();
       if (linksTabPanel) void refreshLinksTab(linksTabPanel);
@@ -722,6 +724,7 @@ async function openEditModal(linkId: string): Promise<void> {
 
     if (res.success) {
       destroyModal();
+      store.setNonTreeUnsaved("links", true);
       showCopyToast("Link updated");
       if (linksTabPanel) void refreshLinksTab(linksTabPanel);
     } else {
@@ -905,6 +908,7 @@ async function openCreateModalWithTarget(targetId: string): Promise<void> {
 
     if (res.success) {
       destroyModal();
+      store.setNonTreeUnsaved("links", true);
       showCopyToast("Link created");
       void refreshLinkCounts();
       if (linksTabPanel) void refreshLinksTab(linksTabPanel);

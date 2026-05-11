@@ -9,17 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.5] - 2026-05-12
 
-### Fixed
+### Added
 
-- **Sidebar scrollbar** (`core-sidebar`, `core-bookmarks`, `core-workspace`, `third-party-links`): removed `overflow-y: auto` from individual tab panels (`.bookmarks-tab`, `.workspace-tab`, `.links-tab`) — only `.sidebar-body` scrolls; fixes overflow items being invisible when tab content exceeds sidebar height
+- **Bookmark sorting** (`core-bookmarks`): added sort toggle (Recent / Most Clicked) in the bookmarks tab header; "Recent" sorts by `pinned_at DESC` (default), "Most Clicked" sorts by `click_count DESC`; preference persisted in `localStorage`; `getBookmarks` RPC now accepts `sortBy` parameter
+- **Page node editing** (`third-party-page-mode`): added `page-editable-toggle` command ("Toggle Page Edit Mode", off by default) — when enabled, page nodes become editable in-place (click text to edit, click bullet `[[..]]` to enter); `wrapPageContent` conditionally skips `contenteditable="false"` and mousedown zoom handler; focus interception disabled in editable mode; preference persisted in localStorage (`mindscape_page_editable_nodes`)
+- **Breadcrumb editing** (`third-party-page-mode`): added `breadcrumb-editable-toggle` command ("Toggle Breadcrumb Editing", off by default) — when enabled, right-clicking the breadcrumb current node shows an "Edit Content" context menu item; inline `<input>` with explicit **Save** / **Discard** buttons replaces the breadcrumb text; Enter saves, Escape or blur discards; "Content updated" toast on save; also accessible via command palette as "Edit Current Node"; preference persisted in localStorage (`mindscape_page_breadcrumb_editable`)
 
 ### Changed
 
 - **Sidebar tab commands** (`third-party-links`, `core-bookmarks`, `core-workspace`): renamed `link-sidebar-toggle` (was "Toggle Links Sidebar") to `show-links` ("Show Links") — pure show semantics (no toggle ambiguity); added matching `show-bookmarks` and `show-workspace` commands; all three tabs share identical "open sidebar to this tab" behavior
+- **Save/Discard coverage** (`main`, `store`, `Toolbar`, multiple plugins): expanded `ensureBackup()` from 6 tree ops to 15 mutating RPCs (bookmarks: pin/unpin/click; links: create/delete/update; plugin state: enable/disable/import); added `nonTreeUnsaved` state + `store.setNonTreeUnsaved()` for plugin-level tracking; toolbar now shows Save/Discard for any unsaved change (tree or non-tree); `store.saveAll()` / `store.discardAll()` clear non-tree sources
+  - **Bookmarks** (`core-bookmarks`): pin/unpin via command, panel, or context menu now tracks unsaved status
+  - **Links** (`third-party-links`): create/delete/update now tracks unsaved status
+  - **Node size** (`third-party-node-size`): adjusting node size now goes through `store.markModified()`
+  - **Breadcrumb editor** (`third-party-page-mode`): now calls `store.markModified()` after content update
+- **Save/Discard convention** codified in `AGENTS.md`: all DB-modifying operations must be listed in `mutatingOps` array and track unsaved state
+- **Roadmap** (`docs/roadmap.md`): recorded Phase 0 (current save/discard coverage) under Initiative 1; documented future directions (Approach A: per-plugin SaveStateManager sources; Approach B: full in-memory staging) for after Phase 3 SQLite Backup API refactor
 
-### Added
+### Fixed
 
-- **Bookmark sorting** (`core-bookmarks`): added sort toggle (Recent / Most Clicked) in the bookmarks tab header; "Recent" sorts by `pinned_at DESC` (default), "Most Clicked" sorts by `click_count DESC`; preference persisted in `localStorage`; `getBookmarks` RPC now accepts `sortBy` parameter
+- **Sidebar scrollbar** (`core-sidebar`, `core-bookmarks`, `core-workspace`, `third-party-links`): removed `overflow-y: auto` from individual tab panels (`.bookmarks-tab`, `.workspace-tab`, `.links-tab`) — only `.sidebar-body` scrolls; fixes overflow items being invisible when tab content exceeds sidebar height
 
 ## [0.4.4] - 2026-05-06
 

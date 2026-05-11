@@ -65,6 +65,25 @@ Based on the [expert review](An%20expert%20review%20to%20SAVE_MECHANISM_SPEC.md)
 - Tests for failure modes (disk full, unlink failure, crash simulation)
 - Consider `PRAGMA journal_mode = WAL2` (begin-concurrent) for future multi-tab support
 
+### Phase 0 — Save/Discard Coverage (Done, v0.4.x)
+
+All DB-modifying operations now participate in the backup-based save/discard flow:
+
+- **`ensureBackup()` expanded** from 6 core tree ops to 15 mutating RPCs — now covers bookmarks (pin/unpin/click), links (create/delete/update), and plugin state (enable/disable/import)
+- **Non-tree unsaved tracking** added to `store` (`setNonTreeUnsaved` + `nonTreeUnsaved` state flag) — bookmarks, links, and node-size operations now show the Save/Discard toolbar
+- **Toolbar** shows Save/Discard for any unsaved change (tree or non-tree)
+- **Breadcrumb editor** goes through `store.markModified()` for proper tracking
+
+### Future Directions (Approaches A & B)
+
+After the Phase 3 SQLite Backup API refactor (which enables `BEGIN → COMMIT/ROLLBACK` for all operations), two richer architectures become possible:
+
+**Approach A — Per-plugin save/discard via SaveStateManager:**
+The existing `SaveStateManager` supports multiple `SaveSource` registrations. After Phase 3, each plugin could register its own source with in-memory staging and a `ROLLBACK`-based discard. Plugins opt in; backward compatible with current backup approach.
+
+**Approach B — Full in-memory staging:**
+All mutating operations write to local state only (no DB writes until Save). Save commits everything as a single transaction. Discard drops in-memory state without touching the DB. Requires in-memory mirrors for bookmarks, links, and plugin state. Clean architecture but significant refactor.
+
 ### Dependency Order
 
 ```

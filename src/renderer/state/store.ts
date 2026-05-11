@@ -25,6 +25,7 @@ export interface AppState {
   searchAvailable: boolean;
   loading: boolean;
   unsavedCount: number;
+  nonTreeUnsaved: boolean;
   saveInProgress: boolean;
   discardInProgress: boolean;
   lastSaveError: string | null;
@@ -45,6 +46,7 @@ class Store {
     searchAvailable: false,
     loading: true,
     unsavedCount: 0,
+    nonTreeUnsaved: false,
     saveInProgress: false,
     discardInProgress: false,
     lastSaveError: null,
@@ -52,6 +54,7 @@ class Store {
   };
 
   private modifiedNodeIds = new Set<string>();
+  private nonTreeUnsavedSources = new Set<string>();
   private listeners = new Set<Listener>();
   private loadVersion = 0;
 
@@ -107,6 +110,15 @@ class Store {
   markModified(nodeId: string): void {
     this.modifiedNodeIds.add(nodeId);
     saveStateManager.notifyListeners();
+  }
+
+  setNonTreeUnsaved(source: string, hasUnsaved: boolean): void {
+    if (hasUnsaved) {
+      this.nonTreeUnsavedSources.add(source);
+    } else {
+      this.nonTreeUnsavedSources.delete(source);
+    }
+    this.update({ nonTreeUnsaved: this.nonTreeUnsavedSources.size > 0 });
   }
 
   private clearModified(): void {
@@ -360,19 +372,23 @@ class Store {
   }
 
   async saveAll(): Promise<{ success: boolean; savedCount: number; error?: string }> {
-    if (this.modifiedNodeIds.size === 0) {
+    const nodeCount = this.modifiedNodeIds.size;
+    const hasNonTree = this.nonTreeUnsavedSources.size > 0;
+    if (nodeCount === 0 && !hasNonTree) {
       return { success: true, savedCount: 0 };
     }
 
     this.update({ saveInProgress: true, lastSaveError: null, lastSaveSuccess: null });
 
-    const count = this.modifiedNodeIds.size;
+    const count = nodeCount;
     const result = await api.commitSave();
 
     this.clearModified();
+    this.nonTreeUnsavedSources.clear();
     this.update({
       saveInProgress: false,
       unsavedCount: 0,
+      nonTreeUnsaved: false,
       lastSaveSuccess: result.success ? count : null,
       lastSaveError: result.success ? null : (result as { error?: string }).error ?? "Save failed",
     });
@@ -386,10 +402,9 @@ class Store {
   }
 
   async discardAll(): Promise<{ success: boolean; discardedCount: number }> {
-    const count = this.modifiedNodeIds.size;
-    console.log("[Discard] discardAll called, modifiedCount:", count);
-    if (count === 0) {
-      console.log("[Discard] No changes, skipping");
+    const nodeCount = this.modifiedNodeIds.size;
+    const hasNonTree = this.nonTreeUnsavedSources.size > 0;
+    if (nodeCount === 0 && !hasNonTree) {
       return { success: true, discardedCount: 0 };
     }
 
@@ -407,8 +422,10 @@ class Store {
         console.log("[Discard] Success, clearing modified and reloading tree");
         const savedZoomId = this.state.zoomedNodeId;
         this.clearModified();
+        this.nonTreeUnsavedSources.clear();
         this.update({
           unsavedCount: 0,
+          nonTreeUnsaved: false,
           lastSaveError: null,
           lastSaveSuccess: null,
           zoomedNodeId: null,
@@ -437,7 +454,7 @@ class Store {
         }
 
         console.log("[Discard] Done");
-        return { success: true, discardedCount: count };
+        return { success: true, discardedCount: nodeCount };
       } else {
         const err = (result as { error?: string }).error;
         console.error("[Discard] Main returned success=false:", err);
