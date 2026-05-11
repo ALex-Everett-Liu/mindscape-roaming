@@ -132,6 +132,10 @@ export interface UnpinBookmarkParams {
   nodeId: string;
 }
 
+export interface GetBookmarksParams {
+  sortBy?: "pinned_at" | "click_count";
+}
+
 export interface IsBookmarkedParams {
   nodeId: string;
 }

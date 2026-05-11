@@ -19,6 +19,7 @@ import type {
   GetNodeLinksParams,
   BookmarkRecord,
   BookmarkWithNode,
+  GetBookmarksParams,
   PinBookmarkParams,
   UnpinBookmarkParams,
   IsBookmarkedParams,
@@ -58,7 +59,7 @@ type OutlinerRpcRequest = {
   updateLink: (params: UpdateLinkParams) => Promise<RpcResult<LinkRecord>>;
   pinBookmark: (params: PinBookmarkParams) => Promise<RpcResult<BookmarkRecord>>;
   unpinBookmark: (params: UnpinBookmarkParams) => Promise<RpcResult<boolean>>;
-  getBookmarks: (params?: Record<string, never>) => Promise<RpcResult<BookmarkWithNode[]>>;
+  getBookmarks: (params?: GetBookmarksParams) => Promise<RpcResult<BookmarkWithNode[]>>;
   isBookmarked: (params: IsBookmarkedParams) => Promise<RpcResult<boolean>>;
   incrementBookmarkClick: (params: IncrementBookmarkClickParams) => Promise<RpcResult<void>>;
   readImageFile: (params: ReadImageFileParams) => Promise<RpcResult<string>>;
@@ -110,7 +111,7 @@ export const api = {
   updateLink: (params: UpdateLinkParams) => getRpc().updateLink(params),
   pinBookmark: (params: PinBookmarkParams) => getRpc().pinBookmark(params),
   unpinBookmark: (params: UnpinBookmarkParams) => getRpc().unpinBookmark(params),
-  getBookmarks: () => getRpc().getBookmarks({}),
+  getBookmarks: (params?: GetBookmarksParams) => getRpc().getBookmarks(params ?? {}),
   isBookmarked: (params: IsBookmarkedParams) => getRpc().isBookmarked(params),
   incrementBookmarkClick: (params: IncrementBookmarkClickParams) => getRpc().incrementBookmarkClick(params),
   readImageFile: (params: ReadImageFileParams) => getRpc().readImageFile(params),

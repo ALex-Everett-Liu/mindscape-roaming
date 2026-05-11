@@ -61,14 +61,15 @@ const plugin: MainPlugin = {
 
     ctx.registerRpcHandler(
       "getBookmarks",
-      () => {
+      (params?: { sortBy?: "pinned_at" | "click_count" }) => {
+        const sortColumn = params?.sortBy === "click_count" ? "b.click_count DESC, b.pinned_at DESC" : "b.pinned_at DESC";
         const rows = db
           .query(`
             SELECT b.id, b.node_id, b.pinned_at, b.click_count, 
                    COALESCE(n.content, '(deleted)') as node_content
             FROM bookmarks b
             LEFT JOIN outline_nodes n ON b.node_id = n.id AND n.is_deleted = 0
-            ORDER BY b.pinned_at DESC
+            ORDER BY ${sortColumn}
           `)
           .all() as BookmarkWithNode[];
         return { success: true, data: rows };

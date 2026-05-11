@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-05-12
+
+### Fixed
+
+- **Sidebar scrollbar** (`core-sidebar`, `core-bookmarks`, `core-workspace`, `third-party-links`): removed `overflow-y: auto` from individual tab panels (`.bookmarks-tab`, `.workspace-tab`, `.links-tab`) — only `.sidebar-body` scrolls; fixes overflow items being invisible when tab content exceeds sidebar height
+
+### Changed
+
+- **Sidebar tab commands** (`third-party-links`, `core-bookmarks`, `core-workspace`): renamed `link-sidebar-toggle` (was "Toggle Links Sidebar") to `show-links` ("Show Links") — pure show semantics (no toggle ambiguity); added matching `show-bookmarks` and `show-workspace` commands; all three tabs share identical "open sidebar to this tab" behavior
+
+### Added
+
+- **Bookmark sorting** (`core-bookmarks`): added sort toggle (Recent / Most Clicked) in the bookmarks tab header; "Recent" sorts by `pinned_at DESC` (default), "Most Clicked" sorts by `click_count DESC`; preference persisted in `localStorage`; `getBookmarks` RPC now accepts `sortBy` parameter
+
 ## [0.4.4] - 2026-05-06
 
 ### Changed

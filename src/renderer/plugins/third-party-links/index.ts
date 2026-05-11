@@ -986,7 +986,6 @@ const plugin: RendererPlugin = {
     // Create tab panel and register on core sidebar
     linksTabPanel = document.createElement("div");
     linksTabPanel.className = "sidebar-tab-panel links-tab";
-    linksTabPanel.style.overflowY = "auto";
     linksTabPanel.style.padding = "8px 0";
 
     await ctx.emit("sidebar:register-tab", {
@@ -1060,15 +1059,12 @@ const plugin: RendererPlugin = {
     });
 
     ctx.registerCommand({
-      id: "link-sidebar-toggle",
-      name: "Toggle Links Sidebar",
+      id: "show-links",
+      name: "Show Links",
       category: "Links",
-      keywords: ["link", "sidebar", "toggle", "panel"],
+      keywords: ["link", "sidebar", "show", "panel"],
       execute: () => {
-        void ctx.emit("sidebar:toggle");
-        if (linksTabPanel) {
-          void ctx.emit("sidebar:show-tab", { tabId: "links" });
-        }
+        void ctx.emit("sidebar:show-tab", { tabId: "links" });
       },
     });
 

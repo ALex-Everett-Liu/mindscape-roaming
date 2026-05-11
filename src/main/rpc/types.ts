@@ -12,5 +12,7 @@ export type {
   DeleteNodeParams,
   GetSubtreeParams,
   SearchParams,
+  QueryNodesBySizeParams,
+  GetBookmarksParams,
   RpcResult,
 } from "../../shared/types";

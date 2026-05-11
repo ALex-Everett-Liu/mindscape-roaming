@@ -105,7 +105,6 @@ const plugin: RendererPlugin = {
     styleEl.textContent = `
       .workspace-tab {
         padding: 8px 12px;
-        overflow-y: auto;
       }
 
       .workspace-list {
@@ -221,6 +220,15 @@ const plugin: RendererPlugin = {
         if (!nodeId) return;
         unpinNode(nodeId);
         await refreshWorkspace();
+      },
+    });
+
+    ctx.registerCommand({
+      id: "show-workspace",
+      name: "Show Workspace",
+      keywords: ["workspace", "sidebar", "show", "panel"],
+      execute: () => {
+        void ctx.emit("sidebar:show-tab", { tabId: "workspace" });
       },
     });
 

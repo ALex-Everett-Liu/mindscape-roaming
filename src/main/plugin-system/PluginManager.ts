@@ -14,6 +14,7 @@ import type {
   GetSubtreeParams,
   SearchParams,
   QueryNodesBySizeParams,
+  GetBookmarksParams,
 } from "../rpc/types";
 
 export class PluginManager {
@@ -161,7 +162,7 @@ export class PluginManager {
           wrap("pinBookmark", r.get("pinBookmark"))(params),
         unpinBookmark: (params: { nodeId: string }) =>
           wrap("unpinBookmark", r.get("unpinBookmark"))(params),
-        getBookmarks: () => wrap("getBookmarks", r.get("getBookmarks"))(),
+        getBookmarks: (params?: GetBookmarksParams) => wrap("getBookmarks", r.get("getBookmarks"))(params),
         isBookmarked: (params: { nodeId: string }) =>
           wrap("isBookmarked", r.get("isBookmarked"))(params),
         incrementBookmarkClick: (params: { nodeId: string }) =>

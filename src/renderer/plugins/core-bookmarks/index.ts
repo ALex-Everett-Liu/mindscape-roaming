@@ -11,24 +11,34 @@ let ctxRef: RendererPluginContext | null = null;
 let styleEl: HTMLStyleElement | null = null;
 let unsubBookmarkChanged: (() => void) | null = null;
 
+const SORT_KEY = "mindscape_bookmarks_sort";
+let sortMode: "pinned_at" | "click_count" = (localStorage.getItem(SORT_KEY) as "pinned_at" | "click_count") || "pinned_at";
+
+function saveSortMode(): void {
+  localStorage.setItem(SORT_KEY, sortMode);
+}
+
 async function refreshBookmarks(): Promise<void> {
   if (!panel) return;
-  const res = await api.getBookmarks();
+  const res = await api.getBookmarks({ sortBy: sortMode });
   if (!res.success || !res.data) return;
 
   bookmarkNodeIds = new Set(res.data.map((b: { node_id: string }) => b.node_id));
 
   if (res.data.length === 0) {
     panel.innerHTML = `
+      ${renderSortHeader()}
       <div class="bookmarks-empty">
         <p>No bookmarked nodes.</p>
         <p class="bookmarks-empty-hint">Focus a node, then run <kbd>Pin to Bookmarks</kbd> from the command palette.</p>
       </div>
     `;
+    attachSortListeners();
     return;
   }
 
-  let html = '<div class="bookmarks-list">';
+  let html = renderSortHeader();
+  html += '<div class="bookmarks-list">';
   for (const bm of res.data) {
     const contentText = bm.node_content || "(empty)";
     const truncated = contentText.length > 80 ? contentText.slice(0, 80) + "\u2026" : contentText;
@@ -44,6 +54,8 @@ async function refreshBookmarks(): Promise<void> {
   }
   html += "</div>";
   panel.innerHTML = html;
+
+  attachSortListeners();
 
   // Event delegation for click and unpin
   panel.querySelectorAll(".bookmark-item").forEach((item) => {
@@ -94,6 +106,31 @@ function escapeAttr(s: string): string {
   return s.replace(/"/g, "&quot;");
 }
 
+function renderSortHeader(): string {
+  const isRecent = sortMode === "pinned_at";
+  return `
+    <div class="bookmarks-sort-header">
+      <span class="bookmarks-sort-label">Sort:</span>
+      <button class="bookmarks-sort-btn ${isRecent ? "active" : ""}" data-sort="pinned_at">Recent</button>
+      <button class="bookmarks-sort-btn ${!isRecent ? "active" : ""}" data-sort="click_count">Most Clicked</button>
+    </div>
+  `;
+}
+
+function attachSortListeners(): void {
+  if (!panel) return;
+  panel.querySelectorAll(".bookmarks-sort-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sort = (btn as HTMLElement).dataset.sort as "pinned_at" | "click_count";
+      if (sort && sort !== sortMode) {
+        sortMode = sort;
+        saveSortMode();
+        void refreshBookmarks();
+      }
+    });
+  });
+}
+
 const plugin: RendererPlugin = {
   manifest,
 
@@ -115,7 +152,6 @@ const plugin: RendererPlugin = {
     styleEl.textContent = `
       .bookmarks-tab {
         padding: 8px 12px;
-        overflow-y: auto;
       }
 
       .bookmarks-list {
@@ -207,6 +243,44 @@ const plugin: RendererPlugin = {
         font-family: var(--font-mono, monospace);
         font-size: 11px;
       }
+
+      .bookmarks-sort-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border, #333);
+      }
+
+      .bookmarks-sort-label {
+        font-size: 11px;
+        color: var(--text-muted, #888);
+        margin-right: 2px;
+      }
+
+      .bookmarks-sort-btn {
+        font-size: 11px;
+        padding: 2px 10px;
+        border: 1px solid var(--border, #333);
+        border-radius: 4px;
+        background: var(--bg, #1a1a2e);
+        color: var(--text-muted, #888);
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+
+      .bookmarks-sort-btn:hover {
+        background: var(--focus-bg, rgba(100, 149, 237, 0.12));
+        color: var(--text, #e0e0e0);
+      }
+
+      .bookmarks-sort-btn.active {
+        background: var(--accent, #4fc3f7);
+        color: #000;
+        border-color: var(--accent, #4fc3f7);
+      }
     `;
     document.head.appendChild(styleEl);
 
@@ -252,6 +326,15 @@ const plugin: RendererPlugin = {
         await api.unpinBookmark({ nodeId });
         bookmarkNodeIds.delete(nodeId);
         await refreshBookmarks();
+      },
+    });
+
+    ctx.registerCommand({
+      id: "show-bookmarks",
+      name: "Show Bookmarks",
+      keywords: ["bookmark", "sidebar", "show", "panel"],
+      execute: () => {
+        void ctx.emit("sidebar:show-tab", { tabId: "bookmarks" });
       },
     });
 
