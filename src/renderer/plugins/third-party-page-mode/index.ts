@@ -3,8 +3,11 @@ import type { RendererPluginContext } from "../../plugin-system/RendererPluginCo
 import type { OutlineNode } from "../../../shared/types";
 import { manifest } from "./manifest";
 import { store } from "../../state/store";
+import { api } from "../../rpc/api";
 
 const BREADCRUMB_TRUNCATE_KEY = "mindscape_page_breadcrumb_truncate";
+const EDITABLE_KEY = "mindscape_page_editable_nodes";
+const BREADCRUMB_EDITABLE_KEY = "mindscape_page_breadcrumb_editable";
 
 const PAGE_CSS = `
 .outline-node[data-is-page]:not(.in-page) > .outline-tree {
@@ -159,6 +162,46 @@ function loadBreadcrumbPref(): void {
 function saveBreadcrumbPref(): void {
   try {
     localStorage.setItem(BREADCRUMB_TRUNCATE_KEY, breadcrumbTruncate ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+/* ─── Editable page nodes toggle ─── */
+
+let editablePageNodes = false;
+
+function loadEditablePref(): void {
+  try {
+    editablePageNodes = localStorage.getItem(EDITABLE_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveEditablePref(): void {
+  try {
+    localStorage.setItem(EDITABLE_KEY, editablePageNodes ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+/* ─── Breadcrumb editing toggle ─── */
+
+let breadcrumbEditing = false;
+
+function loadBreadcrumbEditablePref(): void {
+  try {
+    breadcrumbEditing = localStorage.getItem(BREADCRUMB_EDITABLE_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveBreadcrumbEditablePref(): void {
+  try {
+    localStorage.setItem(BREADCRUMB_EDITABLE_KEY, breadcrumbEditing ? "1" : "0");
   } catch {
     /* ignore */
   }
@@ -382,17 +425,19 @@ function wrapPageContent(editor: HTMLElement, nodeId: string): void {
 
   const wrapper = document.createElement("span");
   wrapper.className = "page-wikilink-wrapper";
-  wrapper.setAttribute("contenteditable", "false");
+
+  if (!editablePageNodes) {
+    wrapper.setAttribute("contenteditable", "false");
+    wrapper.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void store.zoomIn(nodeId);
+    });
+  }
 
   while (editor.firstChild) {
     wrapper.appendChild(editor.firstChild);
   }
-
-  wrapper.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    void store.zoomIn(nodeId);
-  });
 
   editor.appendChild(wrapper);
 }
@@ -413,6 +458,8 @@ let focusForcingZoom = false;
 let lastZoomChangeTime = 0;
 
 function handleFocusIn(e: FocusEvent): void {
+  if (editablePageNodes) return;
+
   const target = e.target as HTMLElement | null;
   if (!target?.classList.contains("node-editor")) return;
 
@@ -441,6 +488,129 @@ function handleFocusOut(e: FocusEvent): void {
 
   // After blur, check if wrapping needed
   requestAnimationFrame(() => scanAndTransform());
+}
+
+/* ─── Breadcrumb editing ─── */
+
+async function startEditingZoomedNode(): Promise<void> {
+  const zoomedId = store.getState().zoomedNodeId;
+  if (!zoomedId) {
+    showCopyToast("No node focused — zoom into a node first");
+    return;
+  }
+
+  const activeEl = document.querySelector<HTMLElement>(".breadcrumb-active");
+  if (!activeEl) return;
+
+  const currentText = activeEl.textContent || "";
+  const originalHTML = activeEl.innerHTML;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "breadcrumb-edit-input";
+  input.value = currentText;
+  input.style.cssText = `
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: var(--bg, #1a1a2e);
+    border: 1px solid var(--accent, #4fc3f7);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    width: 200px;
+  `;
+
+  activeEl.textContent = "";
+  activeEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newText = input.value.trim();
+    activeEl.innerHTML = originalHTML;
+    if (newText && newText !== currentText) {
+      await api.updateNode({ id: zoomedId, content: newText });
+    }
+  };
+
+  input.addEventListener("blur", () => void commit());
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void commit();
+    } else if (e.key === "Escape") {
+      input.value = currentText;
+      void commit();
+    }
+  });
+}
+
+function handleBreadcrumbContextMenu(e: MouseEvent): void {
+  if (!breadcrumbEditing) return;
+
+  const target = (e.target as HTMLElement).closest(".breadcrumb-active") as HTMLElement | null;
+  if (!target) return;
+
+  const zoomedId = store.getState().zoomedNodeId;
+  if (!zoomedId) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Remove any existing breadcrumb context menu
+  const existing = document.querySelector(".breadcrumb-ctx-menu");
+  if (existing) existing.remove();
+
+  const menu = document.createElement("div");
+  menu.className = "breadcrumb-ctx-menu";
+  menu.style.cssText = `
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-secondary, #16213e);
+    border: 1px solid var(--border, #333);
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 140px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+
+  const item = document.createElement("div");
+  item.textContent = "Edit Content";
+  item.style.cssText = `
+    padding: 6px 14px;
+    cursor: pointer;
+    color: var(--text, #e0e0e0);
+    transition: background 0.1s;
+  `;
+  item.addEventListener("mouseenter", () => {
+    item.style.background = "var(--focus-bg, rgba(100, 149, 237, 0.12))";
+  });
+  item.addEventListener("mouseleave", () => {
+    item.style.background = "";
+  });
+  item.addEventListener("mousedown", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    menu.remove();
+    void startEditingZoomedNode();
+  });
+
+  menu.appendChild(item);
+  menu.style.left = `${e.clientX}px`;
+  menu.style.top = `${e.clientY}px`;
+  document.body.appendChild(menu);
+
+  const closeMenu = (ev: Event) => {
+    if (!menu.contains(ev.target as Node)) {
+      menu.remove();
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("contextmenu", closeMenu);
+    }
+  };
+  document.addEventListener("mousedown", closeMenu);
+  document.addEventListener("contextmenu", closeMenu);
 }
 
 /* ─── Main scan loop ─── */
@@ -491,6 +661,8 @@ const plugin: RendererPlugin = {
     ctxRef = ctx;
     syncPageCacheFromStore();
     loadBreadcrumbPref();
+    loadEditablePref();
+    loadBreadcrumbEditablePref();
     injectCSS();
 
     // Initial scan
@@ -510,6 +682,9 @@ const plugin: RendererPlugin = {
     // Handle focus on page nodes outside page context
     document.addEventListener("focusin", handleFocusIn);
     document.addEventListener("focusout", handleFocusOut);
+
+    // Handle breadcrumb right-click editing
+    document.addEventListener("contextmenu", handleBreadcrumbContextMenu);
 
     // React to zoom changes
     unsubStore = store.subscribe((state) => {
@@ -588,6 +763,39 @@ const plugin: RendererPlugin = {
       },
     });
 
+    ctx.registerCommand({
+      id: "page-editable-toggle",
+      name: "Toggle Page Edit Mode",
+      category: "Page",
+      keywords: ["page", "edit", "editable", "inline"],
+      execute: () => {
+        editablePageNodes = !editablePageNodes;
+        saveEditablePref();
+        requestAnimationFrame(() => scanAndTransform());
+        showCopyToast(editablePageNodes ? "Page nodes are now editable" : "Click page content to enter page");
+      },
+    });
+
+    ctx.registerCommand({
+      id: "breadcrumb-editable-toggle",
+      name: "Toggle Breadcrumb Editing",
+      category: "Page",
+      keywords: ["breadcrumb", "edit", "rename", "content"],
+      execute: () => {
+        breadcrumbEditing = !breadcrumbEditing;
+        saveBreadcrumbEditablePref();
+        showCopyToast(breadcrumbEditing ? "Right-click breadcrumb to edit node content" : "Breadcrumb editing disabled");
+      },
+    });
+
+    ctx.registerCommand({
+      id: "edit-zoomed-node",
+      name: "Edit Current Node",
+      category: "Page",
+      keywords: ["edit", "rename", "current", "zoomed", "title"],
+      execute: () => startEditingZoomedNode(),
+    });
+
     // Register context menu items (per-node actions)
     await ctx.emit("context-menu:register", {
       id: "page-mode-make",
@@ -639,6 +847,7 @@ const plugin: RendererPlugin = {
 
     document.removeEventListener("focusin", handleFocusIn);
     document.removeEventListener("focusout", handleFocusOut);
+    document.removeEventListener("contextmenu", handleBreadcrumbContextMenu);
 
     // Remove breadcrumb truncation markers
     const container = document.querySelector<HTMLElement>(".breadcrumb-container");
