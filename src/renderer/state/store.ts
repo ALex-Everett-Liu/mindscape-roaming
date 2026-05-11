@@ -26,6 +26,7 @@ export interface AppState {
   loading: boolean;
   unsavedCount: number;
   nonTreeUnsaved: boolean;
+  nonTreeUnsavedCount: number;
   saveInProgress: boolean;
   discardInProgress: boolean;
   lastSaveError: string | null;
@@ -47,6 +48,7 @@ class Store {
     loading: true,
     unsavedCount: 0,
     nonTreeUnsaved: false,
+    nonTreeUnsavedCount: 0,
     saveInProgress: false,
     discardInProgress: false,
     lastSaveError: null,
@@ -118,7 +120,10 @@ class Store {
     } else {
       this.nonTreeUnsavedSources.delete(source);
     }
-    this.update({ nonTreeUnsaved: this.nonTreeUnsavedSources.size > 0 });
+    this.update({
+      nonTreeUnsaved: this.nonTreeUnsavedSources.size > 0,
+      nonTreeUnsavedCount: this.nonTreeUnsavedSources.size,
+    });
   }
 
   private clearModified(): void {
@@ -389,6 +394,7 @@ class Store {
       saveInProgress: false,
       unsavedCount: 0,
       nonTreeUnsaved: false,
+      nonTreeUnsavedCount: 0,
       lastSaveSuccess: result.success ? count : null,
       lastSaveError: result.success ? null : (result as { error?: string }).error ?? "Save failed",
     });
@@ -426,6 +432,7 @@ class Store {
         this.update({
           unsavedCount: 0,
           nonTreeUnsaved: false,
+          nonTreeUnsavedCount: 0,
           lastSaveError: null,
           lastSaveSuccess: null,
           zoomedNodeId: null,

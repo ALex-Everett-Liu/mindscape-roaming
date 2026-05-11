@@ -109,8 +109,8 @@ export function Toolbar({
             >
               ${state.saveInProgress
                 ? "Saving..."
-                : state.unsavedCount > 0
-                  ? `Save (${state.unsavedCount})`
+                : (state.unsavedCount + state.nonTreeUnsavedCount) > 0
+                  ? `Save (${state.unsavedCount + state.nonTreeUnsavedCount})`
                   : "Save"}
             </button>
             <button

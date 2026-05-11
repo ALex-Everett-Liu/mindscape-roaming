@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Sidebar scrollbar** (`core-sidebar`, `core-bookmarks`, `core-workspace`, `third-party-links`): removed `overflow-y: auto` from individual tab panels (`.bookmarks-tab`, `.workspace-tab`, `.links-tab`) — only `.sidebar-body` scrolls; fixes overflow items being invisible when tab content exceeds sidebar height
+- **Sidebar covered by bottom panels** (`core-sidebar`): raised sidebar `z-index` from 40 to 52 (above backlinks panel at 50 and page ancestors panel at 51); added CSS rule so `.backlinks-panel` and `.page-ancestors-panel` respect sidebar width when active (`.sidebar-active .backlinks-panel, .sidebar-active .page-ancestors-panel { right: var(--sidebar-width) }`)
 
 ## [0.4.4] - 2026-05-06
 

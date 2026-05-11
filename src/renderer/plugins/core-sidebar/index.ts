@@ -208,7 +208,7 @@ const plugin: RendererPlugin = {
         width: var(--sidebar-width);
         background: var(--bg-secondary, #16213e);
         border-left: 1px solid var(--border, #333);
-        z-index: 40;
+        z-index: 52;
         display: flex;
         flex-direction: column;
         font-size: 13px;
@@ -311,6 +311,11 @@ const plugin: RendererPlugin = {
       .sidebar-active .app > .search-results {
         margin-right: var(--sidebar-width);
         transition: margin-right 0.2s ease;
+      }
+
+      .sidebar-active .backlinks-panel,
+      .sidebar-active .page-ancestors-panel {
+        right: var(--sidebar-width);
       }
     `;
     document.head.appendChild(styleEl);
